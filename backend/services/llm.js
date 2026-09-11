@@ -1,7 +1,9 @@
 const Groq = require("groq-sdk");
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
+  apiKey: process.env.GROQ_API_KEY,
+  timeout: 4000,
+  maxRetries: 1
 });
 
 const SYSTEM_PROMPT = `
@@ -48,7 +50,44 @@ async function getLLMResponse(historyTurns, newTranscript, memory = [], knowledg
   }
   
   if (knowledge && knowledge.length > 0) {
-    const knowledgeString = knowledge.map(k => `[DOCUMENT: ${k.title}]\n${k.content}`).join('\n\n');
+    // Intelligent RAG Retrieval: extract candidate sections matching user's query keywords
+    const searchTerms = (newTranscript || '').toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+    
+    let relevantSnippets = [];
+    let allLines = [];
+
+    for (const doc of knowledge) {
+      const docLines = (doc.content || '').split('\n').filter(l => l.trim().length > 0);
+      for (const line of docLines) {
+        let score = 0;
+        const lowerLine = line.toLowerCase();
+        for (const term of searchTerms) {
+          if (lowerLine.includes(term)) score += 2;
+        }
+        allLines.push({ line, score, title: doc.title });
+      }
+    }
+
+    // Sort by relevance to current question
+    allLines.sort((a, b) => b.score - a.score);
+
+    // Pick top matching snippets (up to 4000 characters)
+    let charCount = 0;
+    const selectedLines = [];
+    for (const item of allLines) {
+      if (charCount + item.line.length > 4000) break;
+      selectedLines.push(item.line);
+      charCount += item.line.length;
+    }
+
+    // Fallback: If no strong keyword matches (e.g. general greeting), use top lines from documents
+    if (selectedLines.length === 0 || allLines[0].score === 0) {
+      const rawKnowledgeString = knowledge.map(k => `[DOCUMENT: ${k.title}]\n${k.content}`).join('\n\n');
+      selectedLines.push(rawKnowledgeString.substring(0, 3500));
+    }
+
+    const knowledgeString = selectedLines.join('\n');
+
     contextSection += `### MANDATORY DATA ROOM KNOWLEDGE ###
 The following documents are the ONLY verified source of truth for answering caller queries:
 
@@ -61,21 +100,12 @@ STRICT ANSWERING BOUNDARIES:
 4. Keep the answer concise (1 to 2 sentences maximum, natural conversation).
 5. Do NOT say "Thank you" or goodbye unless the caller has explicitly thanked you or asked to end the conversation.
 #######################################\n\n`;
-
-    groundingMessages.push({ 
-        role: "user", 
-        content: `System Instructions: Use the following verified institutional document facts to answer all questions: \n${knowledgeString.substring(0, 4000)}` 
-    });
-    groundingMessages.push({ 
-        role: "assistant", 
-        content: "Understood. I will answer questions strictly and solely using these verified document records. If any detail is not in these documents, I will state that the information is not available in my current records and will never guess or invent facts." 
-    });
   } else {
     contextSection += `### (Notice: No uploaded knowledge documents available. State that information is not available in records.) ###\n\n`;
   }
 
   if (memory && memory.length > 0) {
-    const memoryString = memory.map(m => `- [${m.timestamp}] ${m.text} (Intent: ${m.intent})`).join('\n');
+    const memoryString = memory.slice(-3).map(m => `- [${m.timestamp}] ${m.text} (Intent: ${m.intent})`).join('\n');
     contextSection += `### PREVIOUS INTERACTION MEMORY ###\nHistory of past calls with this user:\n${memoryString}\n\nNOTE: If the current DATA ROOM knowledge contradicts this history, strictly use the DATA ROOM facts.\n#######################################\n\n`;
   }
 
@@ -83,28 +113,33 @@ STRICT ANSWERING BOUNDARIES:
   const activePromptTemplate = instructions || getVedPrompt() || SYSTEM_PROMPT.replace('Company Name', 'the organization');
 
   const jsonFormatRequirement = `
-MANDATORY RESPONSE FORMAT:
+MANDATORY MULTILINGUAL & RESPONSE FORMAT:
+- Identify the language the caller spoke in their latest message.
+- You MUST generate your "spoken" response in that SAME language (even if the verified DATA ROOM knowledge is in English or Hindi).
+- If the caller speaks Hindi/Hinglish, output the response in Romanized script (transliteration) for natural Indian text-to-speech.
+- Set "language" to the corresponding language code (e.g., "en", "hi", "hinglish", "es", "fr", "de", "ta", "te", "bn", "mr", "gu").
+
 You MUST respond with a valid JSON object matching this exact structure:
 {
-  "spoken": "The exact text to speak aloud to the caller (1-2 sentences maximum, natural conversation)",
+  "spoken": "The exact text to speak aloud to the caller in their language (1-2 sentences maximum, natural conversation)",
   "intent": "primary intent label",
   "entities": ["list", "of", "key", "entities"],
   "sentiment": "positive | neutral | negative | frustrated | satisfied",
   "action_item": null,
-  "language": "hi | en | hinglish"
+  "language": "language code of the spoken response (e.g. en, hi, hinglish, es, fr, de, ta, te, bn, mr, gu)"
 }
 Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 `;
 
   const dynamicSystemPrompt = `${contextSection}### VED SYSTEM BEHAVIOR ###\n${activePromptTemplate}\n\n${jsonFormatRequirement}`;
 
-  // Build the message payload starting with Grounding Turn if available
+  // Build the message payload
   const messages = [
-    { role: "system", content: dynamicSystemPrompt },
-    ...groundingMessages
+    { role: "system", content: dynamicSystemPrompt }
   ];
 
-  const recentTurns = historyTurns.slice(-10);
+  // Keep last 6 conversational turns to preserve context without exceeding token-per-minute limits
+  const recentTurns = historyTurns.slice(-6);
   for (const turn of recentTurns) {
     if (turn.speaker === 'user') {
       messages.push({ role: 'user', content: turn.text });
@@ -116,26 +151,36 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
   messages.push({ role: 'user', content: newTranscript });
 
   // ENHANCED LOGGING
-  console.log(`\n[LLM] NUCLEAR PROMPT READY (Knowledge: ${knowledge.length} fragments)`);
-  if (knowledge.length > 0) {
-    console.log(`[LLM] Grounding turn injected into chat history.`);
-  }
+  console.log(`\n[LLM] PROMPT READY (Knowledge: ${knowledge.length} fragments, History: ${recentTurns.length} turns)`);
 
+  // Models in fallback priority order:
+  // 1. openai/gpt-oss-120b (huge token-per-minute limit, ~650ms)
+  // 2. openai/gpt-oss-20b (~600ms)
+  // Models in priority order:
+  // Candidate models with multiple architectures to prevent daily quota exhaustion:
   const candidateModels = [
     "qwen/qwen3.8-27b",
-    "groq/compound-mini",
-    "openai/gpt-oss-120b"
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "groq/compound-mini"
   ];
 
   for (const model of candidateModels) {
     try {
-      const completion = await groq.chat.completions.create({
+      const isGptOss = model.startsWith("openai/");
+      const requestOptions = {
         messages,
         model,
-        response_format: { type: "json_object" },
         temperature: 0.2,
-        max_completion_tokens: 120
-      }, { timeout: 3500 });
+        max_completion_tokens: isGptOss ? 300 : 120
+      };
+
+      // Only enforce strict json_object on models that support it reliably without schema failure
+      if (!isGptOss) {
+        requestOptions.response_format = { type: "json_object" };
+      }
+
+      const completion = await groq.chat.completions.create(requestOptions, { timeout: 3500 });
 
       const responseContent = completion.choices[0]?.message?.content;
       console.log(`[LLM] Raw Response from ${model}: "${responseContent?.substring(0, 60)}..."`);
@@ -146,8 +191,14 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
       }
 
       try {
-        const parsed = JSON.parse(responseContent);
-        if (parsed.spoken) {
+        // Attempt direct JSON parse or regex extract if enclosed in code blocks
+        let cleanContent = responseContent.trim();
+        const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanContent = jsonMatch[0];
+        }
+        const parsed = JSON.parse(cleanContent);
+        if (parsed && parsed.spoken) {
           return parsed;
         }
       } catch (e) {

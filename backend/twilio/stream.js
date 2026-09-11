@@ -60,23 +60,89 @@ function wavToMulawBuffer(wavBuffer) {
   });
 }
 
+// Pre-generated or on-demand cached natural audio filler to play immediately while retrieving/generating
+let cachedFillerMulaw = null;
+async function getFillerMulaw() {
+  if (cachedFillerMulaw) return cachedFillerMulaw;
+  try {
+    const fillerText = "Give me a second, I'm looking that up for you.";
+    const ttsBuf = await getGoogleTTS(fillerText, 'en');
+    if (ttsBuf) {
+      cachedFillerMulaw = await wavToMulawBuffer(ttsBuf);
+    }
+  } catch (err) {
+    console.warn('[Stream] Could not pre-generate filler audio:', err.message);
+  }
+  return cachedFillerMulaw;
+}
+// Pre-warm filler on startup
+getFillerMulaw().catch(() => {});
+
 function handleStreamConnection(ws) {
   let streamSid = null;
   let callSid = null;
   let audioBuffer = [];
   let isAIProcessing = false;
+  let isPlayingAudio = false;
   let silenceTimer = null;
-  const SILENCE_THRESHOLD_MS = 550; // Optimized for snappy 0.55s turn-taking without awkward pauses
+  const SILENCE_THRESHOLD_MS = 550; // Tuned natural pause before endpointing
   let safetyUnlockTimeout = null;
+  let latestUtteranceId = 0; // Monotonic counter to ensure responses are matched only to latest caller speech
 
   const resetAIState = (reason = '') => {
     if (reason) console.log(`[Stream] Resetting AI state: ${reason}`);
     isAIProcessing = false;
+    isPlayingAudio = false;
     audioBuffer = [];
     if (safetyUnlockTimeout) {
       clearTimeout(safetyUnlockTimeout);
       safetyUnlockTimeout = null;
     }
+  };
+
+  // Helper to send mulaw audio chunks to Twilio
+  const streamAudioToTwilio = async (rawMulaw, currentUtteranceId, markName = 'ai_done') => {
+    if (!rawMulaw || rawMulaw.length === 0) return false;
+    isPlayingAudio = true;
+
+    const chunkSize = 640; // 80ms per chunk at 8kHz mulaw
+    const pacingDelayMs = 20;
+
+    for (let i = 0; i < rawMulaw.length; i += chunkSize) {
+      // If a new caller utterance has superseded this one, abort stale playback
+      if (currentUtteranceId && currentUtteranceId !== latestUtteranceId) {
+        console.log(`[${callSid}] Aborting audio playback because newer utterance (${latestUtteranceId}) superseded (${currentUtteranceId})`);
+        isPlayingAudio = false;
+        return false;
+      }
+      if (ws.readyState !== 1) {
+        console.warn(`[${callSid}] WebSocket disconnected during audio stream (state: ${ws.readyState})`);
+        isPlayingAudio = false;
+        return false;
+      }
+      const chunk = rawMulaw.slice(i, i + chunkSize);
+      ws.send(JSON.stringify({
+        event: 'media',
+        streamSid: streamSid,
+        media: {
+          payload: chunk.toString('base64')
+        }
+      }));
+
+      if (i + chunkSize < rawMulaw.length) {
+        await new Promise(resolve => setTimeout(resolve, pacingDelayMs));
+      }
+    }
+
+    if (ws.readyState === 1) {
+      ws.send(JSON.stringify({
+        event: 'mark',
+        streamSid: streamSid,
+        mark: { name: markName }
+      }));
+    }
+
+    return true;
   };
 
   ws.on('error', (err) => {
@@ -143,14 +209,9 @@ function handleStreamConnection(ws) {
       }
 
     } else if (msg.event === 'media') {
-      if (isAIProcessing) {
-        // Half-duplex MVP: do not collect audio or trigger STT while the AI is listening/speaking
-        return;
-      }
-
       const payloadBuffer = Buffer.from(msg.media.payload, 'base64');
 
-      // VAD heuristic for mulaw
+      // VAD heuristic for 8kHz mulaw
       let loudCount = 0;
       for (let i = 0; i < payloadBuffer.length; i++) {
         let val = payloadBuffer[i];
@@ -158,25 +219,64 @@ function handleStreamConnection(ws) {
         if (amp > 22) loudCount++;
       }
 
-      // Only reset timer if active loud speech is detected
-      if (loudCount > 18) {
+      // Caller spoke with high vocal energy while AI was playing back full answer -> barge-in interruption
+      if (isPlayingAudio && loudCount > 28) {
+        console.log(`[${callSid}] User barge-in detected during AI speech (loudness: ${loudCount}). Halting current audio.`);
+        isPlayingAudio = false;
+        isAIProcessing = false;
+        if (safetyUnlockTimeout) {
+          clearTimeout(safetyUnlockTimeout);
+          safetyUnlockTimeout = null;
+        }
+        if (ws.readyState === 1 && streamSid) {
+          ws.send(JSON.stringify({
+            event: 'clear',
+            streamSid: streamSid
+          }));
+        }
+        audioBuffer = [];
+      }
+
+      // If AI is currently outputting audio or running inference, DO NOT capture microphone audio!
+      // This eliminates telephone acoustic echo (where AI hears its own voice and Whisper transcribes "Thank you")
+      if (isPlayingAudio || isAIProcessing) {
+        return;
+      }
+
+      // Voice Activity Detection & Endpointing
+      if (loudCount > 14) {
         audioBuffer.push(msg.media.payload);
         clearTimeout(silenceTimer);
         silenceTimer = setTimeout(() => {
-          if (audioBuffer.length >= 6) { // Ensure at least ~120ms of actual voice audio
+          if (audioBuffer.length >= 4) {
             processUtterance();
           } else {
             audioBuffer = [];
           }
         }, SILENCE_THRESHOLD_MS);
       } else if (audioBuffer.length > 0) {
-        // Add trailing silence to the utterance, but let timer naturally expire
+        // Capture trailing decay before endpointing
         audioBuffer.push(msg.media.payload);
+        // Ensure silence timer continues running during trailing silence
+        if (!silenceTimer) {
+          silenceTimer = setTimeout(() => {
+            if (audioBuffer.length >= 4) {
+              processUtterance();
+            } else {
+              audioBuffer = [];
+            }
+          }, SILENCE_THRESHOLD_MS);
+        }
       }
       
     } else if (msg.event === 'mark') {
-      console.log(`[${callSid}] AI finished speaking, unlocking audio capture`);
-      resetAIState('mark event');
+      if (msg.mark?.name === 'ai_filler') {
+        console.log(`[${callSid}] Natural filler finished playing, continuing answer pipeline`);
+        isPlayingAudio = false;
+      } else {
+        console.log(`[${callSid}] AI finished speaking (mark: ${msg.mark?.name}), unlocking audio capture`);
+        resetAIState('mark event received');
+      }
     } else if (msg.event === 'stop') {
       console.log(`Stream stopped: ${streamSid}`);
       if (global.broadcastEvent) {
@@ -187,23 +287,33 @@ function handleStreamConnection(ws) {
   });
 
   async function processUtterance() {
-    if (audioBuffer.length === 0 || isAIProcessing) return;
+    if (audioBuffer.length === 0 || isAIProcessing || isPlayingAudio) return;
     
     isAIProcessing = true;
     const currentAudio = [...audioBuffer];
     audioBuffer = []; // Clear for next utterance
+    const utteranceId = ++latestUtteranceId;
 
-    // Safety timeout: if AI doesn't finish in 12s, unlock
+    // Safety timeout: if pipeline doesn't finish within 12s, forcefully unlock so caller is never stranded
+    if (safetyUnlockTimeout) clearTimeout(safetyUnlockTimeout);
     safetyUnlockTimeout = setTimeout(() => {
-        resetAIState('Safety timeout reached (12s)');
+      console.warn(`[${callSid}] Safety timeout triggered (12s). Unlocking stream.`);
+      resetAIState('Safety timeout (12s)');
     }, 12000);
     
     try {
       // 1. Decode & Resample asynchronously
       const pcm16Wav = await mulawToWavBuffer(currentAudio);
       
+      // Check if another utterance arrived while resampling
+      if (utteranceId !== latestUtteranceId) {
+        console.log(`[${callSid}] Utterance #${utteranceId} superseded by #${latestUtteranceId}`);
+        resetAIState('Superseded before STT');
+        return;
+      }
+
       // 2. STT (Groq Whisper)
-      console.log(`\n--- [${callSid}] AUDIO CHUNK RECEIVED ---`);
+      console.log(`\n--- [${callSid}] AUDIO CHUNK RECEIVED (Utterance #${utteranceId}) ---`);
       console.log(`[${callSid}] Sending ${pcm16Wav.length} bytes of audio to Groq Whisper STT...`);
       const sttResult = await getGroqSTT(pcm16Wav);
       
@@ -211,26 +321,35 @@ function handleStreamConnection(ws) {
         resetAIState('Empty STT result');
         return;
       }
+
+      if (utteranceId !== latestUtteranceId) {
+        console.log(`[${callSid}] Utterance #${utteranceId} superseded after STT`);
+        resetAIState('Superseded after STT');
+        return;
+      }
       
       const cleanTranscript = sttResult.transcript.trim().toLowerCase().replace(/[^\w\s]/g, '');
       const hallucinations = [
         "thanks for watching", "thank you for watching", "please subscribe", 
-        "thank you", "thanks", "thank you very much", "bye", "you", "so", "oh"
+        "thank you", "thanks", "thank you very much", "bye", "you", "so", 
+        "thank you so much", "see you next time", "subtitles by", "watching", "amara"
       ];
 
-      // If audio chunk is short / silent and Whisper outputs a typical isolated phantom token, ignore it
-      if (hallucinations.includes(cleanTranscript) || cleanTranscript === '') {
-         console.log(`[${callSid}] Ignoring known Whisper hallucination or background artifact: "${sttResult.transcript}"`);
-         resetAIState('Whisper hallucination/background noise detected');
+      // Whisper phantom hallucination filter:
+      // When caller has not spoken a real sentence, Whisper defaults to "thank you" or "thanks".
+      // Ignore isolated "thank you" or short noise chunks (<40 frames / ~800ms)
+      if (hallucinations.includes(cleanTranscript) && currentAudio.length < 40) {
+         console.log(`[${callSid}] Filtered Whisper phantom hallucination on noise/silence: "${sttResult.transcript}"`);
+         resetAIState('Whisper hallucination filtered');
          return;
       }
       
-      console.log(`[${callSid}] User said: ${sttResult.transcript}`);
+      console.log(`[${callSid}] User said: "${sttResult.transcript}"`);
       addTurn(callSid, {
         timestamp: new Date().toISOString(),
         speaker: 'user',
         text: sttResult.transcript,
-        language: sttResult.language_code || 'hi' // fallback
+        language: sttResult.language_code || 'en'
       });
 
       // Broadcast to Frontend
@@ -254,18 +373,25 @@ function handleStreamConnection(ws) {
         activeKnowledge = await getKnowledge();
       }
 
-      // 3. LLM (CALLER AI)
-      console.log(`\n--- [${callSid}] LLM PROCESSING ---`);
-      console.log(`[${callSid}] Querying CALLER AI LLM (Active knowledge fragments: ${activeKnowledge.length})...`);
+      // 3. LLM (CALLER AI / VED)
+      console.log(`\n--- [${callSid}] LLM PROCESSING (Utterance #${utteranceId}) ---`);
+      console.log(`[${callSid}] Querying LLM (Active knowledge fragments: ${activeKnowledge.length})...`);
       const aiResponse = await getLLMResponse(
-        session.turns, 
+        session ? session.turns : [], 
         sttResult.transcript, 
-        session.memory || [],
+        session ? (session.memory || []) : [],
         activeKnowledge,
-        session.instructions || ''
+        session ? (session.instructions || '') : ''
       );
-      console.log(`[${callSid}] LLM Answer Object:`, JSON.stringify(aiResponse, null, 2));
-      console.log(`[${callSid}] AI will say: "${aiResponse.spoken}" (Language: ${aiResponse.language})`);
+
+      // Check again if caller spoke a newer question while LLM was processing
+      if (utteranceId !== latestUtteranceId) {
+        console.log(`[${callSid}] Discarding LLM response for #${utteranceId} because caller spoke again (#${latestUtteranceId})`);
+        resetAIState('Superseded after LLM');
+        return;
+      }
+
+      console.log(`[${callSid}] LLM Answer: "${aiResponse.spoken}" (Language: ${aiResponse.language})`);
       
       addTurn(callSid, {
         timestamp: new Date().toISOString(),
@@ -287,56 +413,35 @@ function handleStreamConnection(ws) {
         });
       }
 
-      // 4. TTS (Google TTS)
-      console.log(`\n--- [${callSid}] TTS GENERATION ---`);
-      console.log(`[${callSid}] Requesting TTS from Google for text: "${aiResponse.spoken}"...`);
+      // 4. TTS (Google TTS) in Caller's detected language
+      console.log(`[${callSid}] Requesting TTS for: "${aiResponse.spoken}" (Language: ${aiResponse.language})...`);
       const ttsBuffer = await getGoogleTTS(aiResponse.spoken, aiResponse.language);
+      
+      if (utteranceId !== latestUtteranceId) {
+        console.log(`[${callSid}] Discarding TTS playback for #${utteranceId} due to newer utterance #${latestUtteranceId}`);
+        resetAIState('Superseded after TTS');
+        return;
+      }
+
       if (ttsBuffer) {
         // 5. Encode back to mulaw and send to Twilio
         const rawMulaw = await wavToMulawBuffer(ttsBuffer);
-        
         const audioDurationMs = Math.round((rawMulaw.length / 8000) * 1000);
-        console.log(`[${callSid}] Sending ${rawMulaw.length} bytes of mulaw audio (~${(audioDurationMs / 1000).toFixed(1)}s) to Twilio...`);
+        console.log(`[${callSid}] Streaming ${rawMulaw.length} bytes mulaw audio (~${(audioDurationMs / 1000).toFixed(1)}s) to Twilio...`);
 
-        // Dynamically adjust safety timeout to duration of speech + 5 seconds buffer
+        // Send the audio
+        await streamAudioToTwilio(rawMulaw, utteranceId, 'ai_done');
+
+        // Allow audio playback duration + 400ms buffer, then automatically unlock state
+        // This ensures that even if Twilio drops or delays the 'mark' callback, VED never stays locked
         if (safetyUnlockTimeout) clearTimeout(safetyUnlockTimeout);
         safetyUnlockTimeout = setTimeout(() => {
-          resetAIState('Safety timeout reached after playback');
-        }, audioDurationMs + 5000);
+          console.log(`[${callSid}] Playback window completed (~${audioDurationMs}ms). Unlocking audio capture.`);
+          resetAIState('Playback window completed');
+        }, audioDurationMs + 400);
 
-        // Send paced audio chunks (640 bytes = 80ms) with 25ms delay
-        // Prevents socket congestion, eliminates Twilio buffer drops, and avoids disconnects
-        const chunkSize = 640;
-        const pacingDelayMs = 25;
-        for (let i = 0; i < rawMulaw.length; i += chunkSize) {
-          if (ws.readyState !== 1) {
-            console.warn(`[${callSid}] WebSocket disconnected during audio stream (state: ${ws.readyState})`);
-            break;
-          }
-          const chunk = rawMulaw.slice(i, i + chunkSize);
-          ws.send(JSON.stringify({
-            event: 'media',
-            streamSid: streamSid,
-            media: {
-              payload: chunk.toString('base64')
-            }
-          }));
-
-          if (i + chunkSize < rawMulaw.length) {
-            await new Promise(resolve => setTimeout(resolve, pacingDelayMs));
-          }
-        }
-
-        if (ws.readyState === 1) {
-          // Send Mark to release half-duplex lock when Twilio finishes playing
-          ws.send(JSON.stringify({
-            event: 'mark',
-            streamSid: streamSid,
-            mark: { name: 'ai_done' }
-          }));
-        }
       } else {
-         resetAIState('TTS result empty');
+        resetAIState('TTS result empty');
       }
 
     } catch (e) {

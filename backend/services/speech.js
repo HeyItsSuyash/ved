@@ -9,6 +9,8 @@ async function getGroqSTT(pcm16WavBuffer) {
   form.append('file', blob, 'audio.wav');
   form.append('model', 'whisper-large-v3-turbo');
   form.append('response_format', 'json');
+  form.append('temperature', '0.0');
+  form.append('prompt', 'University admission enquiry, admission form, programme change, transfer, eligibility, fees, semester, counseling, cut-off.');
 
   try {
     const response = await fetch(url, {
@@ -36,11 +38,48 @@ async function getGroqSTT(pcm16WavBuffer) {
 const googleTTS = require('google-tts-api');
 
 // Generate MP3 audio buffer from Free Google TTS
-async function getGoogleTTS(text, language = 'hi') {
+async function getGoogleTTS(text, language = 'en') {
   try {
+    const langLower = (language || 'en').toLowerCase().trim();
+    let targetLang = 'en-IN';
+
+    if (langLower.startsWith('hi') || langLower === 'hinglish') {
+      targetLang = 'hi-IN';
+    } else if (langLower.startsWith('en')) {
+      targetLang = 'en-IN';
+    } else if (langLower.startsWith('es')) {
+      targetLang = 'es';
+    } else if (langLower.startsWith('fr')) {
+      targetLang = 'fr';
+    } else if (langLower.startsWith('de')) {
+      targetLang = 'de';
+    } else if (langLower.startsWith('ta')) {
+      targetLang = 'ta';
+    } else if (langLower.startsWith('te')) {
+      targetLang = 'te';
+    } else if (langLower.startsWith('bn')) {
+      targetLang = 'bn';
+    } else if (langLower.startsWith('mr')) {
+      targetLang = 'mr';
+    } else if (langLower.startsWith('gu')) {
+      targetLang = 'gu';
+    } else if (langLower.startsWith('ar')) {
+      targetLang = 'ar';
+    } else if (langLower.startsWith('pt')) {
+      targetLang = 'pt';
+    } else if (langLower.startsWith('it')) {
+      targetLang = 'it';
+    } else if (langLower.startsWith('ja')) {
+      targetLang = 'ja';
+    } else if (langLower.startsWith('zh')) {
+      targetLang = 'zh';
+    } else {
+      targetLang = langLower.length === 2 ? langLower : 'en-IN';
+    }
+
     // Generate multiple audio URLs if text is long (> 200 chars)
     const parts = googleTTS.getAllAudioUrls(text, {
-      lang: language.includes('en') ? 'en-IN' : 'hi-IN',
+      lang: targetLang,
       slow: false,
       host: 'https://translate.google.com',
       splitPunct: ',.?'
@@ -56,7 +95,7 @@ async function getGoogleTTS(text, language = 'hi') {
     }
     
     const finalBuffer = Buffer.concat(buffers);
-    console.log(`[Google TTS] Audio received successfully. Total Bytes Length: ${finalBuffer.length}`);
+    console.log(`[Google TTS] Audio received successfully for lang '${targetLang}'. Total Bytes Length: ${finalBuffer.length}`);
     return finalBuffer; // Returns concatenated MP3 buffer
   } catch (err) {
     console.error("Google TTS Error:", err);

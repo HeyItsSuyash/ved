@@ -147,20 +147,30 @@ export default function WorkspacePage() {
       };
 
       socket.onerror = (err) => {
-        console.error('[WebSocket] Connection error:', err);
+        // Only log if not intentionally closed during component unmount
+        if (socket && socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) {
+          console.warn('[WebSocket] Notice: live updates socket reconnecting...');
+        }
       };
 
       socket.onclose = (event) => {
-        console.warn(`[WebSocket] Disconnected (Code: ${event.code}). Retrying in 3s...`);
-        reconnectTimeout = setTimeout(connectWS, 3000);
+        if (!isUnmounted) {
+          reconnectTimeout = setTimeout(connectWS, 3000);
+        }
       };
     };
 
+    let isUnmounted = false;
     connectWS();
 
     return () => {
-      if (socket) socket.close();
+      isUnmounted = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socket) {
+        socket.onclose = null;
+        socket.onerror = null;
+        socket.close();
+      }
     };
   }, [targetUser, router]);
 
