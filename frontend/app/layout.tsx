@@ -13,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Caller OS - Enterprise Voice AI",
-  description: "Grounded voice infrastructure for automated business communication.",
+  title: "Madan Mohan Malaviya University of Technology - Student Portal",
+  description: "Samarth eGov Student Portal for Madan Mohan Malaviya University of Technology Gorakhpur.",
 };
 
 export default function RootLayout({
