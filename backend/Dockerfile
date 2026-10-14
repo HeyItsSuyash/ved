@@ -1,5 +1,5 @@
-# Use official lightweight Node.js image
-FROM node:20-bullseye-slim
+# Use official lightweight Node.js image with Debian Bookworm
+FROM node:20-bookworm-slim
 
 # Install system dependencies: ffmpeg (required by audio pipeline), openssl (required by Prisma)
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -24,5 +24,17 @@ services:
         sync: false
       - key: TWILIO_PHONE_NUMBER
         sync: false
+      - key: TELEPHONY_PROVIDER
+        value: exotel
+      - key: EXOTEL_ACCOUNT_SID
+        sync: false
+      - key: EXOTEL_API_KEY
+        sync: false
+      - key: EXOTEL_API_TOKEN
+        sync: false
+      - key: EXOTEL_SUBDOMAIN
+        value: api.exotel.com
+      - key: EXOTEL_CALLER_ID
+        sync: false
       - key: SERVER_URL
         sync: false

@@ -62,9 +62,27 @@ app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
 
+const { handleExotelVoiceWebhook, handleExotelStatusCallback } = require("./exotel/webhook");
+const { handleExotelStreamConnection } = require("./exotel/stream");
+
 // Call Initiation & Voice Webhook
 app.post("/call/outbound", initiateOutboundCall);
+app.post("/twilio/outbound", initiateOutboundCall);
 app.post("/twilio/voice", handleTwilioWebhook);
+
+// Exotel Voice Webhooks
+app.post("/exotel/voice", handleExotelVoiceWebhook);
+app.post("/exotel/status", handleExotelStatusCallback);
+
+// Telephony Status & Provider Check
+app.get("/api/telephony/status", (req, res) => {
+  const provider = (process.env.TELEPHONY_PROVIDER || 'twilio').toLowerCase();
+  res.json({
+    provider,
+    exotelConfigured: Boolean(process.env.EXOTEL_ACCOUNT_SID && process.env.EXOTEL_API_KEY),
+    twilioConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+  });
+});
 
 // Dashboard APIs
 app.get("/calls", (req, res) => {
@@ -422,6 +440,8 @@ wss.on("connection", (ws, req) => {
 
   if (normalizedPath === "/twilio/stream" || normalizedPath.startsWith("/twilio/stream/")) {
     handleStreamConnection(ws);
+  } else if (normalizedPath === "/exotel/stream" || normalizedPath.startsWith("/exotel/stream/")) {
+    handleExotelStreamConnection(ws);
   } else if (normalizedPath === "/live" || normalizedPath === "/live/") {
     console.log("[WebSocket] Frontend dashboard connected for updates");
     frontendClients.add(ws);
