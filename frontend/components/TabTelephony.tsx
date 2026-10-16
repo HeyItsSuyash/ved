@@ -13,13 +13,14 @@ import {
 
 const TabTelephony = () => {
   const activeNumbers = [
-    { number: '+1 662 481 8479', label: 'Primary Twilio Line', status: 'Active', rate: '₹0.85/min', region: 'United States' },
+    { number: '08047281152', label: 'Primary Inbound Helpline (ExoPhone)', status: 'Active', rate: '₹0.60/min', region: 'India (Bangalore)' },
+    { number: '+1 662 481 8479', label: 'Twilio Line (Backup)', status: 'Active', rate: '₹0.85/min', region: 'United States' },
     { number: '+91 80 4719 3982', label: 'Inbound FAQ Support', status: 'Routing Inactive', rate: '₹1.20/min', region: 'India (Bangalore)' }
   ];
 
   const providers = [
     { name: 'Twilio', logo: 'TW', status: 'Connected', desc: 'Standard Telephony & WebSockets Stream Protocol.', active: true },
-    { name: 'Exotel', logo: 'EX', status: 'Coming Soon', desc: 'Enterprise localized Indian numbers and SIP trunks.', active: false },
+    { name: 'Exotel', logo: 'EX', status: 'Connected', desc: 'Enterprise localized Indian numbers & real-time inbound AI streaming.', active: true },
     { name: 'Plivo', logo: 'PL', status: 'Coming Soon', desc: 'High-availability global SMS and Voice interfaces.', active: false },
     { name: 'Knowlarity', logo: 'KN', status: 'Coming Soon', desc: 'Virtual cloud telephony routing and IVR services.', active: false },
     { name: 'Custom SIP Trunk', logo: 'SIP', status: 'Coming Soon', desc: 'Direct connection to local office PBX hardware.', active: false }

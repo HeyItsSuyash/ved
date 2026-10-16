@@ -163,9 +163,12 @@ function handleStreamConnection(ws) {
       console.log(`Stream started: ${streamSid} for call: ${callSid}`);
       
       // Initialize state if not already done by outbound
+      const incomingCaller = msg.start?.customParameters?.caller || msg.start?.customParameters?.From || msg.start?.from || 'unknown';
       let session = getCallSession(callSid);
       if (!session) {
-        session = createCallSession(callSid);
+        session = createCallSession(callSid, incomingCaller, 'VED');
+      } else if (session.phoneNumber === 'unknown' && incomingCaller !== 'unknown') {
+        updateCallSession(callSid, { phoneNumber: incomingCaller });
       }
 
       // Notify frontend that the call is now live (picked up by recipient)

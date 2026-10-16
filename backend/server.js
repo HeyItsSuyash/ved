@@ -58,7 +58,7 @@ app.get('/widget.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../integration/widget/widget.js'));
 });
 
-app.get("/health", (req, res) => {
+app.get(["/", "/health"], (req, res) => {
   res.status(200).send("OK");
 });
 

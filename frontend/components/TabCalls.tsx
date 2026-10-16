@@ -175,9 +175,26 @@ const TabCalls: React.FC<TabCallsProps> = ({
           <div className="flex-1 flex divide-x divide-white/10 overflow-hidden">
             {/* Left dial controller */}
             <div className="w-1/3 p-6 flex flex-col gap-6 bg-[#0a0a0a]/30 overflow-y-auto">
+              {/* INBOUND HELPLINE BANNER */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-black to-neutral-900 border border-emerald-500/30 shadow-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live Inbound Helpline
+                  </span>
+                  <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    EXOTEL
+                  </span>
+                </div>
+                <p className="text-lg font-black tracking-wider text-white font-mono">08047281152</p>
+                <p className="text-[9px] text-neutral-400 font-medium mt-1 leading-relaxed">
+                  Call this number from any phone. The AI assistant will answer and live transcripts will show right here.
+                </p>
+              </div>
+
               <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-400 font-display mb-1">Outbound Dialer</h3>
-                <p className="text-[9px] text-neutral-500 font-bold uppercase">Configure & initialize live outbound dialing</p>
+                <h3 className="text-xs font-black uppercase tracking-widest text-neutral-400 font-display mb-1">Outbound Dialer (Optional)</h3>
+                <p className="text-[9px] text-neutral-500 font-bold uppercase">Manual outbound test call if needed</p>
               </div>
 
               <div className="space-y-4">
