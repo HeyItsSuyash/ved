@@ -1,10 +1,20 @@
 const Groq = require("groq-sdk");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-  timeout: 4000,
-  maxRetries: 1
-});
+let groqInstance = null;
+function getGroqClient() {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  if (!groqInstance) {
+    groqInstance = new Groq({
+      apiKey,
+      timeout: 4000,
+      maxRetries: 1
+    });
+  }
+  return groqInstance;
+}
 
 const SYSTEM_PROMPT = `
 You are CALLER AI, a warm, intelligent, and highly natural-sounding AI phone agent. You work for Company Name and your job is to help callers with their queries.
@@ -153,6 +163,19 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
   // ENHANCED LOGGING
   console.log(`\n[LLM] PROMPT READY (Knowledge: ${knowledge.length} fragments, History: ${recentTurns.length} turns)`);
 
+  const groq = getGroqClient();
+  if (!groq) {
+    console.warn("[LLM] GROQ_API_KEY is not configured. Returning fallback response.");
+    return {
+      spoken: "Main samajh nahi paayi, kripya thodi der baad prayas karein.",
+      intent: "unknown",
+      entities: [],
+      sentiment: "neutral",
+      action_item: null,
+      language: "hinglish"
+    };
+  }
+
   // Models in fallback priority order:
   // 1. openai/gpt-oss-120b (huge token-per-minute limit, ~650ms)
   // 2. openai/gpt-oss-20b (~600ms)
@@ -234,6 +257,12 @@ Return a JSON object:
 }
 `;
   try {
+    const groq = getGroqClient();
+    if (!groq) {
+      console.warn("[CALLER AI] GROQ_API_KEY is not configured. Skipping summary.");
+      return null;
+    }
+
     const completion = await groq.chat.completions.create({
       messages: [
         { role: "system", content: SYS_PROMPT },
