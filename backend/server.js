@@ -71,8 +71,8 @@ app.post("/twilio/outbound", initiateOutboundCall);
 app.post("/twilio/voice", handleTwilioWebhook);
 
 // Exotel Voice Webhooks
-app.post("/exotel/voice", handleExotelVoiceWebhook);
-app.post("/exotel/status", handleExotelStatusCallback);
+app.all("/exotel/voice", handleExotelVoiceWebhook);
+app.all("/exotel/status", handleExotelStatusCallback);
 
 // Telephony Status & Provider Check
 app.get("/api/telephony/status", (req, res) => {
@@ -433,7 +433,7 @@ wss.on("connection", (ws, req) => {
   if (normalizedPath === "/twilio/stream" || normalizedPath.startsWith("/twilio/stream/")) {
     handleStreamConnection(ws);
   } else if (normalizedPath === "/exotel/stream" || normalizedPath.startsWith("/exotel/stream/")) {
-    handleExotelStreamConnection(ws);
+    handleExotelStreamConnection(ws, req);
   } else if (normalizedPath === "/live" || normalizedPath === "/live/") {
     console.log("[WebSocket] Frontend dashboard connected for updates");
     frontendClients.add(ws);

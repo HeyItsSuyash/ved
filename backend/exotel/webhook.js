@@ -1,17 +1,32 @@
 /**
- * Exotel Voice Webhook Handlers
+ * Exotel Voice & Status Webhook Handlers
+ * Enhanced with deep request diagnostics, fallback ExoML, and error tracking.
  */
 
 function handleExotelVoiceWebhook(req, res) {
-  const serverUrl = process.env.PUBLIC_BASE_URL || process.env.SERVER_URL || 'http://localhost:3001';
-  const wsUrl = serverUrl.replace(/^http/, 'ws') + '/exotel/stream';
+  const method = req.method;
+  const query = req.query || {};
+  const body = req.body || {};
 
-  const callSid = req.body?.CallSid || req.query?.CallSid || req.body?.CallUUID || `exo_${Date.now()}`;
-  const caller = req.body?.From || req.query?.From || 'Unknown';
+  console.log('----------------------------------------------------');
+  console.log(`[ExotelWebhook:VOICE] Received ${method} voice webhook`);
+  console.log('[ExotelWebhook:QUERY]:', JSON.stringify(query));
+  console.log('[ExotelWebhook:BODY]:', JSON.stringify(body));
+  console.log('[ExotelWebhook:HEADERS]:', JSON.stringify(req.headers));
 
-  console.log(`[ExotelWebhook] Incoming voice request for call ${callSid} from ${caller}`);
+  const serverUrl = process.env.PUBLIC_BASE_URL || process.env.SERVER_URL || 'https://ved-avga.onrender.com';
+  const cleanServer = serverUrl.replace(/\/$/, '');
+  const wsUrl = cleanServer.replace(/^http/, 'ws') + '/exotel/stream';
 
-  // Return ExoML stream configuration
+  const callSid = body.CallSid || query.CallSid || body.CallUUID || query.CallUUID || `exo_${Date.now()}`;
+  const caller = body.From || query.From || body.CallFrom || query.CallFrom || 'Unknown';
+  const dialedNumber = body.To || query.To || body.DialWhomNumber || '08047281152';
+
+  console.log(`[ExotelWebhook:CALL_INIT] CallSid: ${callSid} | Caller: ${caller} | Dialed: ${dialedNumber}`);
+  console.log(`[ExotelWebhook:WS_TARGET] Directing Exotel stream to: ${wsUrl}`);
+
+  // Exotel ExoML response connecting to WebSocket Audio Stream
+  // Includes fallback Say in case stream handshake takes 100ms to open
   const exoML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
@@ -23,17 +38,25 @@ function handleExotelVoiceWebhook(req, res) {
   </Connect>
 </Response>`;
 
+  console.log('[ExotelWebhook:RESPONSE_EXOML]:', exoML);
   res.set('Content-Type', 'application/xml');
   res.send(exoML);
 }
 
 function handleExotelStatusCallback(req, res) {
-  const callSid = req.body?.CallSid || req.body?.CallUUID;
-  const status = req.body?.Status || req.body?.CallStatus;
-  const duration = req.body?.Duration || req.body?.Legs?.[0]?.Duration;
+  console.log('----------------------------------------------------');
+  console.log('[ExotelStatusCallback:STATUS] Call status update received:');
+  console.log('[ExotelStatusCallback:BODY]:', JSON.stringify(req.body));
+  console.log('[ExotelStatusCallback:QUERY]:', JSON.stringify(req.query));
 
-  console.log(`[ExotelStatus] Call ${callSid} status: ${status}, duration: ${duration || 'N/A'}s`);
-  res.json({ success: true });
+  const callSid = req.body?.CallSid || req.query?.CallSid || req.body?.CallUUID;
+  const status = req.body?.Status || req.query?.Status || req.body?.CallStatus;
+  const duration = req.body?.Duration || req.query?.Duration || req.body?.Legs?.[0]?.Duration;
+  const terminationReason = req.body?.TerminationReason || req.body?.HangupCause || req.query?.HangupCause;
+
+  console.log(`[ExotelStatusCallback] SID: ${callSid} | Status: ${status} | Duration: ${duration || 0}s | TerminationReason: ${terminationReason || 'N/A'}`);
+
+  res.json({ success: true, callSid, status });
 }
 
 module.exports = {
