@@ -13,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Madan Mohan Malaviya University of Technology - Student Portal",
-  description: "Samarth eGov Student Portal for Madan Mohan Malaviya University of Technology Gorakhpur.",
+  title: "MMMUT - Admission Support & Counselling Portal",
+  description: "Admission Support and Counselling Portal for Madan Mohan Malaviya University of Technology Gorakhpur.",
 };
 
 export default function RootLayout({

@@ -60,7 +60,7 @@ export default function StudentPortalRoot() {
   if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#edf0f5]">
-        <div className="text-slate-400 text-xs font-medium">Loading Student Portal...</div>
+        <div className="text-slate-400 text-xs font-medium">Loading Admission Support Portal...</div>
       </div>
     );
   }

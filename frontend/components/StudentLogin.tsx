@@ -147,7 +147,7 @@ export default function StudentLogin({ onLoginSuccess }: StudentLoginProps) {
           <div className="flex flex-col items-center text-center">
             <MmmutLogo size={115} className="mb-2" />
             <h2 className="text-xl sm:text-[22px] font-bold text-slate-900 tracking-tight mt-1">
-              Student Portal
+              Admission Support & Counselling Portal
             </h2>
           </div>
 

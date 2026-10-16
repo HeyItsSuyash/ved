@@ -232,7 +232,7 @@ export default function StudentDashboard({
                   onClick={() => { setActiveTab('StudentPortal'); setUserMenuOpen(false); }}
                   className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                 >
-                  <GraduationCap className="w-3.5 h-3.5 text-slate-400" /> Student Portal View
+                  <GraduationCap className="w-3.5 h-3.5 text-slate-400" /> Counselling & Support View
                 </button>
                 <button
                   onClick={() => { setActiveTab('Operations'); setActiveSubheading('Live Test Dialer'); setUserMenuOpen(false); }}
@@ -341,7 +341,7 @@ export default function StudentDashboard({
               >
                 <div className="flex items-center gap-2.5">
                   <GraduationCap className="w-4 h-4 text-slate-500" />
-                  <span>Student Portal View</span>
+                  <span>Counselling & Support View</span>
                 </div>
                 {studentPortalOpen ? (
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -396,7 +396,7 @@ export default function StudentDashboard({
               </button>
               <span className="mx-1.5 text-slate-400">/</span>
               <span className="text-slate-600">
-                {activeTab === 'StudentPortal' ? 'Student Portal' : `VED ${activeTab}`}
+                {activeTab === 'StudentPortal' ? 'Admission Support Portal' : `VED ${activeTab}`}
               </span>
               <span className="mx-1.5 text-slate-400">/</span>
               <span className="text-slate-900 font-semibold">
