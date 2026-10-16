@@ -147,25 +147,17 @@ export default function VedDocuments({ subheading = 'Knowledge Base Documents' }
   return (
     <div className="space-y-6">
       {/* Header Card */}
-      <div className="bg-white border border-slate-200 rounded-xs p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-              RAG Knowledge Repository
-            </span>
-            <span className="text-xs text-slate-500 font-mono">
-              {sources.length} Documents Indexed
-            </span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">VED Documents & Grounding Data</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Institutional knowledge files (syllabi, ordinances, fee schedules) used to answer caller questions accurately.
+          <h1 className="text-xl font-bold text-slate-900">Data Room</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Upload files here. The AI uses this data to answer caller questions.
           </p>
         </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-[#2563eb] text-white rounded text-xs font-semibold hover:bg-blue-700 flex items-center gap-2 shadow-xs cursor-pointer"
+          className="px-4 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Upload Document
         </button>
@@ -194,7 +186,7 @@ export default function VedDocuments({ subheading = 'Knowledge Base Documents' }
                 <th className="p-3.5">Document Title</th>
                 <th className="p-3.5">Format</th>
                 <th className="p-3.5">File Size</th>
-                <th className="p-3.5">Embeddings</th>
+                <th className="p-3.5">Status</th>
                 <th className="p-3.5">Updated</th>
                 <th className="p-3.5 text-right">Actions</th>
               </tr>

@@ -94,98 +94,45 @@ export default function VedInsights({ onQuickCall, subheading = 'Overview & KPIs
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <div className="bg-white border border-slate-200 rounded-xs p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Live AI Assistance
-            </span>
-            <span className="text-xs text-slate-500 font-mono">
-              Line Pool: {activeLines}/{totalLines} Active Lines
-            </span>
-          </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">VED Insights & Analytics</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Realtime metrics across caller queries, automated resolutions, and student helpdesk trends.
+          <h1 className="text-xl font-bold text-slate-900">Insights</h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Summary of calls, duration, and questions asked.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchInsights}
-            disabled={loading}
-            className="px-3 py-1.5 rounded-xs bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Data</span>
-          </button>
-          {onQuickCall && (
-            <button
-              onClick={onQuickCall}
-              className="px-3.5 py-1.5 rounded-xs bg-[#2563eb] text-white hover:bg-blue-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-            >
-              <PhoneCall className="w-3.5 h-3.5" />
-              <span>Test VED Call</span>
-            </button>
-          )}
-        </div>
+        <button
+          onClick={fetchInsights}
+          disabled={loading}
+          className="px-3.5 py-1.5 rounded bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {/* 6 Core KPIs */}
       {(!subheading || subheading.includes('Overview') || subheading.includes('KPI')) && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="p-4 border border-slate-200 rounded-xs bg-white shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Calls</span>
-              <PhoneIncoming className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-slate-900">{totalCalls}</div>
-            <div className="text-[10px] text-emerald-600 font-medium mt-1">↑ 22.4% this week</div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 border border-slate-200 rounded bg-white">
+            <span className="text-xs text-slate-500 block mb-1">Total Calls</span>
+            <div className="text-xl font-bold text-slate-900">{totalCalls}</div>
           </div>
 
-          <div className="p-4 border border-slate-200 rounded-xs bg-white shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Talk Time</span>
-              <Clock className="w-4 h-4 text-slate-400" />
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-slate-900">{totalTalkTime}</div>
-            <div className="text-[10px] text-slate-500 font-medium mt-1">Grounded AI dialog</div>
+          <div className="p-4 border border-slate-200 rounded bg-white">
+            <span className="text-xs text-slate-500 block mb-1">Total Talk Time</span>
+            <div className="text-xl font-bold text-slate-900">{totalTalkTime}</div>
           </div>
 
-          <div className="p-4 border border-slate-200 rounded-xs bg-white shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Avg Talk Time</span>
-              <Activity className="w-4 h-4 text-blue-600" />
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-slate-900">{avgTalkTime}</div>
-            <div className="text-[10px] text-slate-500 font-medium mt-1">Per session avg</div>
+          <div className="p-4 border border-slate-200 rounded bg-white">
+            <span className="text-xs text-slate-500 block mb-1">Average Duration</span>
+            <div className="text-xl font-bold text-slate-900">{avgTalkTime}</div>
           </div>
 
-          <div className="p-4 border border-slate-200 rounded-xs bg-white shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Unique Queries</span>
-              <HelpCircle className="w-4 h-4 text-indigo-600" />
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-slate-900">{distinctQuestionsCount}</div>
-            <div className="text-[10px] text-indigo-600 font-medium mt-1">Topics identified</div>
-          </div>
-
-          <div className="p-4 border border-slate-200 rounded-xs bg-white shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Resolution Rate</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-emerald-600">{successRate}%</div>
-            <div className="text-[10px] text-emerald-600 font-medium mt-1">Solved autonomously</div>
-          </div>
-
-          <div className="p-4 border border-slate-200 rounded-xs bg-white shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Telephony Lines</span>
-              <ShieldCheck className="w-4 h-4 text-amber-500" />
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-slate-900">{activeLines}/{totalLines}</div>
-            <div className="text-[10px] text-amber-600 font-medium mt-1">Line fallback active</div>
+          <div className="p-4 border border-slate-200 rounded bg-white">
+            <span className="text-xs text-slate-500 block mb-1">Unique Questions</span>
+            <div className="text-xl font-bold text-slate-900">{distinctQuestionsCount}</div>
           </div>
         </div>
       )}
@@ -264,8 +211,8 @@ export default function VedInsights({ onQuickCall, subheading = 'Overview & KPIs
         <div className="bg-white border border-slate-200 rounded-xs p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Frequent Student Queries & Inquiries</h3>
-              <p className="text-xs text-slate-500">Frequently recurring topics resolved by VED conversational agent</p>
+              <h3 className="text-sm font-bold text-slate-900">Common Questions Asked by Callers</h3>
+              <p className="text-xs text-slate-500">List of questions transcribed from caller audio</p>
             </div>
             <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
               {faqs.length} Trending Questions

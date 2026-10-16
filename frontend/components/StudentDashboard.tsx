@@ -48,26 +48,26 @@ export default function StudentDashboard({
   const navItems = [
     {
       id: 'CallDashboard' as const,
-      title: 'Current Call & Dashboard',
-      description: 'Live call stream, active caller, & KPIs',
+      title: 'Call Dashboard',
+      description: 'Live call status and conversation',
       icon: PhoneCall
     },
     {
       id: 'DataRoom' as const,
-      title: 'Data Room & Documents',
-      description: 'Grounding knowledge base & syllabus',
+      title: 'Data Room',
+      description: 'Knowledge base and uploaded files',
       icon: FolderLock
     },
     {
       id: 'Insights' as const,
-      title: 'Analytics & Insights',
-      description: 'Caller queries, FAQs, & resolution rates',
+      title: 'Insights',
+      description: 'Call counts and common questions',
       icon: Activity
     }
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#edf0f5] text-slate-800 font-sans antialiased">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans antialiased">
       {/* Top Header */}
       <header className="sticky top-0 z-30 w-full bg-white border-b border-slate-200 shadow-xs h-15 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
@@ -88,9 +88,8 @@ export default function StudentDashboard({
               <span className="text-slate-900 font-bold text-xs sm:text-sm tracking-tight leading-tight">
                 Madan Mohan Malaviya University of Technology
               </span>
-              <span className="text-[11px] font-medium text-[#2563eb] flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                VED AI Voice Operations Portal
+              <span className="text-xs text-slate-500">
+                AI Voice Helpline Dashboard
               </span>
             </div>
           </div>
@@ -98,9 +97,9 @@ export default function StudentDashboard({
 
         {/* Right Status & Admin Badge */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Exotel Helpline Active
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded text-xs font-medium">
+            <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+            Helpline Active
           </div>
 
           <div className="relative">
@@ -213,7 +212,7 @@ export default function StudentDashboard({
 
             <div className="mt-auto pt-10 pb-4">
               <p className="text-[12px] text-slate-400 font-medium">
-                © VED Voice Intelligence & Admissions Helpdesk
+                MMMUT AI Voice Helpline
               </p>
             </div>
           </div>
