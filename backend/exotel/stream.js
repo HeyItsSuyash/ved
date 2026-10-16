@@ -1,61 +1,145 @@
 const { handleStreamConnection } = require('../twilio/stream');
-const { createCallSession, getCallSession, updateCallSession } = require('../state/calls');
+const EventEmitter = require('events');
 
 /**
- * Robust Exotel Audio Streaming WebSocket Handler
- * Handles message normalization, binary frame passthrough, and deep diagnostic logging.
+ * Exotel Audio Stream Adapter
+ * Normalizes Exotel binary audio & JSON packets into standard Twilio-compatible envelopes
+ * so the core STT/LLM/TTS conversational pipeline processes both seamlesssly.
  */
 function handleExotelStreamConnection(ws, req) {
   const clientIp = req?.socket?.remoteAddress || 'unknown';
   const queryParams = req?.url ? new URL(req.url, 'http://localhost').searchParams : new URLSearchParams();
-  
-  console.log(`[ExotelStream:INIT] Connection established from IP: ${clientIp}`);
-  console.log(`[ExotelStream:INIT] Headers: ${JSON.stringify(req?.headers || {})}`);
-  console.log(`[ExotelStream:INIT] Query params: ${queryParams.toString()}`);
 
-  let callSid = queryParams.get('callSid') || queryParams.get('CallSid') || null;
-  let streamSid = queryParams.get('streamSid') || null;
+  let callSid = queryParams.get('callSid') || queryParams.get('CallSid') || `exo_${Date.now()}`;
+  let streamSid = queryParams.get('streamSid') || `exostream_${Date.now()}`;
+  let caller = queryParams.get('caller') || queryParams.get('From') || 'Inbound Caller';
 
-  // Track socket lifecycle
-  ws.on('error', (err) => {
-    console.error(`[ExotelStream:ERROR] WebSocket error on call ${callSid || 'unregistered'}:`, err.message, err.stack);
+  console.log(`[ExotelStream:INIT] Connection from ${clientIp} | Call: ${callSid} | Stream: ${streamSid}`);
+
+  // Create an adapter socket that wraps ws so twilio/stream.js gets normalized packets
+  const adapterWs = new EventEmitter();
+  adapterWs.readyState = ws.readyState;
+
+  // Sync readyState and methods
+  adapterWs.send = (payload) => {
+    if (ws.readyState === 1) {
+      // Both Twilio and Exotel expect JSON events with media.payload (base64)
+      ws.send(payload);
+    }
+  };
+
+  adapterWs.close = (code, reason) => ws.close(code, reason);
+
+  ws.on('open', () => {
+    adapterWs.readyState = ws.readyState;
+    adapterWs.emit('open');
   });
 
   ws.on('close', (code, reason) => {
-    console.warn(`[ExotelStream:CLOSE] WebSocket closed! Code: ${code}, Reason: ${reason?.toString() || 'No reason provided'} | CallSid: ${callSid}`);
+    adapterWs.readyState = ws.readyState;
+    console.log(`[ExotelStream:CLOSE] Socket closed: ${code} (${reason?.toString() || 'none'})`);
+    adapterWs.emit('close', code, reason);
   });
 
-  // Pre-process messages before passing to twilio/stream.js
-  const rawOn = ws.on.bind(ws);
-  const listeners = [];
+  ws.on('error', (err) => {
+    console.error(`[ExotelStream:ERROR]`, err.message);
+    adapterWs.emit('error', err);
+  });
 
-  // Listen to messages for diagnostic tracking & format adaptation
+  let hasSentStart = false;
+
   ws.on('message', (data, isBinary) => {
-    if (isBinary) {
-      console.log(`[ExotelStream:RAW_BINARY] Received raw binary audio chunk: ${data.length} bytes`);
+    // 1. Raw Binary Audio Frame (Exotel audio stream sends raw PCM/mulaw binary buffers)
+    if (isBinary || Buffer.isBuffer(data) && !data.toString('utf8').trim().startsWith('{')) {
+      const base64Audio = Buffer.from(data).toString('base64');
+
+      if (!hasSentStart) {
+        hasSentStart = true;
+        const startPacket = {
+          event: 'start',
+          start: {
+            streamSid,
+            callSid,
+            customParameters: { caller, From: caller }
+          }
+        };
+        adapterWs.emit('message', JSON.stringify(startPacket));
+      }
+
+      const mediaPacket = {
+        event: 'media',
+        streamSid,
+        media: {
+          payload: base64Audio
+        }
+      };
+      adapterWs.emit('message', JSON.stringify(mediaPacket));
       return;
     }
 
+    // 2. JSON Packet (Exotel JSON streaming event)
     try {
       const text = data.toString('utf8');
       const parsed = JSON.parse(text);
 
-      console.log(`[ExotelStream:EVENT] Received event: '${parsed.event || parsed.type}' | Keys: ${Object.keys(parsed).join(', ')}`);
+      const eventType = parsed.event || parsed.type;
 
-      if (parsed.event === 'start' || parsed.event === 'connected') {
-        streamSid = parsed.streamSid || parsed.stream_sid || parsed.start?.streamSid;
+      if (eventType === 'connected' || eventType === 'start') {
+        hasSentStart = true;
+        streamSid = parsed.streamSid || parsed.stream_sid || parsed.start?.streamSid || streamSid;
         callSid = parsed.callSid || parsed.call_sid || parsed.start?.callSid || callSid;
-        console.log(`[ExotelStream:START] Stream details -> streamSid: ${streamSid}, callSid: ${callSid}`);
-      } else if (parsed.event === 'stop' || parsed.event === 'close') {
-        console.log(`[ExotelStream:STOP] Exotel sent stop event: ${JSON.stringify(parsed)}`);
+
+        const normalizedStart = {
+          event: 'start',
+          start: {
+            streamSid,
+            callSid,
+            customParameters: parsed.start?.customParameters || { caller, From: caller }
+          }
+        };
+        adapterWs.emit('message', JSON.stringify(normalizedStart));
+
+      } else if (eventType === 'media' || parsed.media || parsed.data) {
+        const payload = parsed.media?.payload || parsed.payload || parsed.data;
+        if (payload) {
+          const normalizedMedia = {
+            event: 'media',
+            streamSid,
+            media: {
+              payload: payload
+            }
+          };
+          adapterWs.emit('message', JSON.stringify(normalizedMedia));
+        }
+
+      } else if (eventType === 'stop' || eventType === 'close') {
+        const normalizedStop = {
+          event: 'stop',
+          streamSid
+        };
+        adapterWs.emit('message', JSON.stringify(normalizedStop));
+
+      } else if (eventType === 'mark') {
+        adapterWs.emit('message', JSON.stringify(parsed));
+      } else {
+        // Passthrough other events
+        adapterWs.emit('message', text);
       }
+
     } catch (err) {
-      console.warn('[ExotelStream:PARSE_WARN] Failed to parse message as JSON:', err.message);
+      console.warn('[ExotelStream] Fallback binary audio handling:', err.message);
+      const base64Audio = Buffer.from(data).toString('base64');
+      const mediaPacket = {
+        event: 'media',
+        streamSid,
+        media: { payload: base64Audio }
+      };
+      adapterWs.emit('message', JSON.stringify(mediaPacket));
     }
   });
 
-  // Attach core conversation engine
-  handleStreamConnection(ws);
+  // Attach core conversation engine to adapted stream
+  handleStreamConnection(adapterWs);
 }
 
 module.exports = {
