@@ -213,8 +213,8 @@ export default function StudentDashboard({
               <div className="w-8 h-8 rounded-full bg-[#1e293b] flex items-center justify-center text-white shadow-xs">
                 <User className="w-4 h-4 fill-white" />
               </div>
-              <span className="text-xs sm:text-sm font-medium text-slate-700">
-                {studentRoll}
+              <span className="text-xs sm:text-sm font-medium text-slate-700 font-mono">
+                admin
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
@@ -222,10 +222,9 @@ export default function StudentDashboard({
             {userMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-sm shadow-lg border border-slate-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-4 py-2.5 border-b border-slate-100">
-                  <p className="text-xs font-semibold text-slate-800">{studentData.name}</p>
-                  <p className="text-[11px] text-slate-500">{studentData.rollNumber}</p>
+                  <p className="text-xs font-semibold text-slate-800">Admin</p>
                   <span className="inline-block mt-1 text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-                    MMMUT VED Admin
+                    VED Voice Admin
                   </span>
                 </div>
                 <button

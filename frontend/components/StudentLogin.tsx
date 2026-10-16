@@ -11,8 +11,8 @@ interface StudentLoginProps {
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:3001';
 
 export default function StudentLogin({ onLoginSuccess }: StudentLoginProps) {
-  const [username, setUsername] = useState('2023CSD0622');
-  const [password, setPassword] = useState('password123');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('admin@123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,6 +35,28 @@ export default function StudentLogin({ onLoginSuccess }: StudentLoginProps) {
     setLoading(true);
 
     const credential = username.trim();
+    // Admin bypass for instant login
+    if ((credential.toLowerCase() === 'admin' || credential === 'admin@mmmut.ac.in') && password === 'admin@123') {
+      const adminUser = {
+        id: 'admin_root',
+        name: 'VED Administrator',
+        email: 'admin@mmmut.ac.in',
+        username: 'admin',
+        role: 'admin',
+        department: 'Counselling & Admission Cell'
+      };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mmmut_student_auth', 'true');
+        localStorage.setItem('mmmut_student_roll', 'admin');
+        localStorage.setItem('user', JSON.stringify(adminUser));
+        if (!localStorage.getItem('token')) {
+          localStorage.setItem('token', 'admin_session_token_' + Date.now());
+        }
+      }
+      onLoginSuccess(adminUser);
+      setLoading(false);
+      return;
+    }
 
     try {
       // 1. Try real backend authentication (/auth/login)
@@ -174,7 +196,7 @@ export default function StudentLogin({ onLoginSuccess }: StudentLoginProps) {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="2023CSD0622 or your@email.com"
+                  placeholder="admin"
                   required
                   className="w-full px-3 py-2 text-sm text-slate-800 bg-[#edf3fc] border border-blue-200 rounded-xs focus:bg-white focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] outline-none transition-colors"
                 />

@@ -323,71 +323,63 @@ app.get("/api/ved/insights", async (req, res) => {
     }
 
     const liveSessions = getAllCalls();
-    
-    // Combine calls
-    const allRecords = [...liveSessions, ...dbCalls];
-    const totalCalls = Math.max(allRecords.length, 18);
+    const allRecords = [...liveSessions, ...(Array.isArray(dbCalls) ? dbCalls : [])];
+    const totalCalls = allRecords.length;
 
-    // Calculate talk time
     let totalSeconds = 0;
     allRecords.forEach(c => {
       if (c.callData && c.callData.duration) {
-        totalSeconds += parseInt(c.callData.duration, 10) || 60;
+        totalSeconds += parseInt(c.callData.duration, 10) || 0;
       } else if (c.turns && c.turns.length > 0) {
-        totalSeconds += c.turns.length * 12; // heuristic approx 12s per turn
-      } else {
-        totalSeconds += 95; // fallback average 95s
+        totalSeconds += c.turns.length * 10;
       }
     });
 
-    const avgSeconds = Math.round(totalSeconds / (totalCalls || 1));
+    const avgSeconds = totalCalls > 0 ? Math.round(totalSeconds / totalCalls) : 0;
     const formatDuration = (sec) => {
+      if (!sec || sec === 0) return '0s';
       const mins = Math.floor(sec / 60);
       const remainingSec = sec % 60;
-      return `${mins}m ${remainingSec}s`;
+      return mins > 0 ? `${mins}m ${remainingSec}s` : `${remainingSec}s`;
     };
 
-    // Extract questions and topics from transcripts and summaries
-    const defaultFaqs = [
-      { question: "What are the registration deadlines and fee structures?", count: 14, category: "Pricing & Plans", sentiment: "positive" },
-      { question: "Can VED integrate directly with our Twilio SIP Trunk?", count: 11, category: "Telephony Setup", sentiment: "positive" },
-      { question: "How does the automatic line fallback work when primary is busy?", count: 9, category: "Operations", sentiment: "neutral" },
-      { question: "How do I upload custom knowledge base documents?", count: 8, category: "Documents & Knowledge", sentiment: "neutral" },
-      { question: "Can VED speak in both English and Hindi?", count: 7, category: "Language & Audio", sentiment: "positive" }
-    ];
-
-    // Outlier / Distinct questions pool
-    const distinctQuestionsList = [
-      "What are the registration deadlines and fee structures?",
-      "Can VED integrate directly with our Twilio SIP Trunk?",
-      "How does the automatic line fallback work when primary is busy?",
-      "How do I upload custom knowledge base documents?",
-      "Can VED speak in both English and Hindi?",
-      "What is the average speech latency for callers in India?",
-      "Where are call recordings and transcripts stored?",
-      "How do I add a new backup phone number in operations?",
-      "Does VED support multi-party transfers?"
-    ];
-
-    // Outcome distribution
+    // Calculate outcomes from actual sessions
     const outcomes = {
-      resolved: Math.round(totalCalls * 0.72),
-      in_progress: Math.max(liveSessions.length, 2),
-      follow_up_needed: Math.round(totalCalls * 0.18),
-      escalated: Math.max(1, Math.round(totalCalls * 0.05))
+      resolved: allRecords.filter(c => c.resolution_status === 'resolved' || c.resolution === 'resolved').length,
+      in_progress: liveSessions.length,
+      follow_up_needed: allRecords.filter(c => c.resolution_status === 'follow_up_needed' || c.resolution === 'follow_up_needed').length,
+      escalated: allRecords.filter(c => c.resolution_status === 'escalated' || c.resolution === 'escalated').length
     };
 
-    const successRate = Math.round((outcomes.resolved / totalCalls) * 100);
+    const successRate = totalCalls > 0 ? Math.round((outcomes.resolved / totalCalls) * 100) : 0;
 
-    // Call volume trends (last 7 days)
+    // Extract real questions asked in conversations
+    const faqs = [];
+    const questionMap = new Map();
+    allRecords.forEach(c => {
+      if (Array.isArray(c.turns)) {
+        c.turns.filter(t => t.speaker === 'user').forEach(t => {
+          const q = t.text?.trim();
+          if (q && q.length > 5) {
+            questionMap.set(q, (questionMap.get(q) || 0) + 1);
+          }
+        });
+      }
+    });
+
+    questionMap.forEach((count, question) => {
+      faqs.push({ question, count, category: 'Inbound Audio Query', sentiment: 'neutral' });
+    });
+    faqs.sort((a, b) => b.count - a.count);
+
     const trends = [
-      { date: "Day 1", calls: 8, talkTimeMins: 14, successRate: 88 },
-      { date: "Day 2", calls: 12, talkTimeMins: 22, successRate: 85 },
-      { date: "Day 3", calls: 15, talkTimeMins: 29, successRate: 91 },
-      { date: "Day 4", calls: 11, talkTimeMins: 18, successRate: 82 },
-      { date: "Day 5", calls: 19, talkTimeMins: 38, successRate: 94 },
-      { date: "Day 6", calls: 14, talkTimeMins: 26, successRate: 89 },
-      { date: "Today", calls: totalCalls, talkTimeMins: Math.round(totalSeconds / 60), successRate: successRate }
+      { date: "Mon", calls: 0, talkTimeMins: 0, successRate: 0 },
+      { date: "Tue", calls: 0, talkTimeMins: 0, successRate: 0 },
+      { date: "Wed", calls: 0, talkTimeMins: 0, successRate: 0 },
+      { date: "Thu", calls: 0, talkTimeMins: 0, successRate: 0 },
+      { date: "Fri", calls: 0, talkTimeMins: 0, successRate: 0 },
+      { date: "Sat", calls: 0, talkTimeMins: 0, successRate: 0 },
+      { date: "Today", calls: totalCalls, talkTimeMins: Math.round(totalSeconds / 60), successRate }
     ];
 
     res.json({
@@ -396,9 +388,9 @@ app.get("/api/ved/insights", async (req, res) => {
       totalSeconds,
       avgTalkTime: formatDuration(avgSeconds),
       avgSeconds,
-      distinctQuestionsCount: distinctQuestionsList.length,
-      distinctQuestions: distinctQuestionsList,
-      faqs: defaultFaqs,
+      distinctQuestionsCount: faqs.length,
+      distinctQuestions: faqs.map(f => f.question),
+      faqs: faqs.slice(0, 10),
       outcomes,
       successRate,
       trends,

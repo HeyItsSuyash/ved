@@ -49,31 +49,24 @@ export default function VedInsights({ onQuickCall, subheading = 'Overview & KPIs
       setInsights(data);
     } catch (err: any) {
       console.warn('Backend unavailable, using college portal defaults for VED insights:', err.message);
-      // Fallback defaults for MMMUT VED Assistance
       setInsights({
-        totalCalls: 34,
-        totalTalkTime: '1h 18m',
-        avgTalkTime: '2m 18s',
-        distinctQuestionsCount: 14,
-        successRate: 91,
-        activeLines: 2,
-        totalLines: 3,
-        outcomes: { resolved: 28, in_progress: 2, follow_up_needed: 3, escalated: 1 },
-        faqs: [
-          { question: "What are the B.Tech admission counseling dates for 2026?", count: 24, category: "Admissions", sentiment: "positive" },
-          { question: "How do I link my Academic Bank of Credits (ABC) ID in Samarth?", count: 19, category: "Samarth Portal", sentiment: "neutral" },
-          { question: "What is the fee payment deadline for Semester 6?", count: 16, category: "Fee Section", sentiment: "positive" },
-          { question: "Where can I download the End-Semester Examination admit card?", count: 12, category: "Examination", sentiment: "neutral" },
-          { question: "What is the hostel mess fee structure and room allotment process?", count: 11, category: "Hostel Affairs", sentiment: "positive" }
-        ],
+        totalCalls: 0,
+        totalTalkTime: '0s',
+        avgTalkTime: '0s',
+        distinctQuestionsCount: 0,
+        successRate: 0,
+        activeLines: 1,
+        totalLines: 1,
+        outcomes: { resolved: 0, in_progress: 0, follow_up_needed: 0, escalated: 0 },
+        faqs: [],
         trends: [
-          { date: "Mon", calls: 14, talkTimeMins: 32, successRate: 89 },
-          { date: "Tue", calls: 18, talkTimeMins: 41, successRate: 92 },
-          { date: "Wed", calls: 22, talkTimeMins: 55, successRate: 90 },
-          { date: "Thu", calls: 19, talkTimeMins: 44, successRate: 94 },
-          { date: "Fri", calls: 27, talkTimeMins: 62, successRate: 91 },
-          { date: "Sat", calls: 21, talkTimeMins: 48, successRate: 88 },
-          { date: "Today", calls: 34, talkTimeMins: 78, successRate: 91 }
+          { date: "Mon", calls: 0, talkTimeMins: 0, successRate: 0 },
+          { date: "Tue", calls: 0, talkTimeMins: 0, successRate: 0 },
+          { date: "Wed", calls: 0, talkTimeMins: 0, successRate: 0 },
+          { date: "Thu", calls: 0, talkTimeMins: 0, successRate: 0 },
+          { date: "Fri", calls: 0, talkTimeMins: 0, successRate: 0 },
+          { date: "Sat", calls: 0, talkTimeMins: 0, successRate: 0 },
+          { date: "Today", calls: 0, talkTimeMins: 0, successRate: 0 }
         ]
       });
     } finally {
@@ -85,20 +78,15 @@ export default function VedInsights({ onQuickCall, subheading = 'Overview & KPIs
     fetchInsights();
   }, []);
 
-  const totalCalls = insights?.totalCalls || 34;
-  const totalTalkTime = insights?.totalTalkTime || '1h 18m';
-  const avgTalkTime = insights?.avgTalkTime || '2m 18s';
-  const distinctQuestionsCount = insights?.distinctQuestionsCount || 14;
-  const successRate = insights?.successRate || 91;
-  const activeLines = insights?.activeLines || 2;
-  const totalLines = insights?.totalLines || 3;
+  const totalCalls = insights?.totalCalls ?? 0;
+  const totalTalkTime = insights?.totalTalkTime || '0s';
+  const avgTalkTime = insights?.avgTalkTime || '0s';
+  const distinctQuestionsCount = insights?.distinctQuestionsCount ?? 0;
+  const successRate = insights?.successRate ?? 0;
+  const activeLines = insights?.activeLines ?? 1;
+  const totalLines = insights?.totalLines ?? 1;
 
-  const outcomes = insights?.outcomes || {
-    resolved: 28,
-    in_progress: 2,
-    follow_up_needed: 3,
-    escalated: 1
-  };
+  const outcomes = insights?.outcomes || { resolved: 0, in_progress: 0, follow_up_needed: 0, escalated: 0 };
 
   const faqs = insights?.faqs || [];
   const trendsData = insights?.trends || [];
@@ -212,24 +200,34 @@ export default function VedInsights({ onQuickCall, subheading = 'Overview & KPIs
                 <p className="text-xs text-slate-500">Weekly call volume handled by VED Assistance</p>
               </div>
             </div>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendsData}>
-                  <defs>
-                    <linearGradient id="callGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
-                  <YAxis stroke="#94a3b8" fontSize={11} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '4px', fontSize: '12px' }}
-                  />
-                  <Area type="monotone" dataKey="calls" stroke="#2563eb" strokeWidth={2} fillOpacity={1} fill="url(#callGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="h-64 w-full flex items-center justify-center">
+              {totalCalls === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-200 rounded-sm w-full h-full bg-slate-50/50">
+                  <Activity className="w-8 h-8 text-slate-300 mb-2" />
+                  <p className="text-xs font-semibold text-slate-700">Awaiting Inbound Calls</p>
+                  <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">
+                    Call volume and resolution trends will plot dynamically as callers dial 08047281152.
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendsData}>
+                    <defs>
+                      <linearGradient id="callGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
+                    <YAxis stroke="#94a3b8" fontSize={11} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '4px', fontSize: '12px' }}
+                    />
+                    <Area type="monotone" dataKey="calls" stroke="#2563eb" strokeWidth={2} fillOpacity={1} fill="url(#callGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
@@ -274,26 +272,36 @@ export default function VedInsights({ onQuickCall, subheading = 'Overview & KPIs
             </span>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {faqs.map((faq: any, i: number) => (
-              <div key={i} className="py-3 flex items-center justify-between gap-4 text-xs">
-                <div className="flex items-center gap-3">
-                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px]">
-                    {i + 1}
-                  </span>
-                  <span className="font-medium text-slate-800">{faq.question}</span>
+          {faqs.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-slate-200 rounded-sm bg-slate-50/50">
+              <MessageSquare className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs font-semibold text-slate-700">No Inquiries Recorded Yet</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Questions asked by callers will be categorized and aggregated here in real time.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {faqs.map((faq: any, i: number) => (
+                <div key={i} className="py-3 flex items-center justify-between gap-4 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-[10px]">
+                      {i + 1}
+                    </span>
+                    <span className="font-medium text-slate-800">{faq.question}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px]">
+                      {faq.category}
+                    </span>
+                    <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
+                      {faq.count} inquiries
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px]">
-                    {faq.category}
-                  </span>
-                  <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
-                    {faq.count} inquiries
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

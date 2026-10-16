@@ -3,28 +3,10 @@ const path = require('path');
 
 // Default initial VED numbers from environment
 function getInitialNumbers() {
-  const envNumbers = (process.env.TWILIO_PHONE_NUMBERS || process.env.TWILIO_PHONE_NUMBER || '+16624818479')
-    .split(',')
-    .map(n => n.trim())
-    .filter(Boolean);
-
-  const defaultList = [
-    { number: '+16624818479', label: 'Primary Line (US)', status: 'Active', priority: 1, callsHandled: 0 },
-    { number: '+16624818480', label: 'Backup Line 1', status: 'Standby', priority: 2, callsHandled: 0 },
-    { number: '+16624818481', label: 'Backup Line 2', status: 'Standby', priority: 3, callsHandled: 0 }
+  const exotelNum = process.env.EXOTEL_PHONE_NUMBER || process.env.EXOTEL_CALLER_ID || '08047281152';
+  return [
+    { number: exotelNum, label: 'Exotel Primary Helpline (Inbound)', status: 'Active', priority: 1, callsHandled: 0 }
   ];
-
-  if (envNumbers.length > 0) {
-    return envNumbers.map((num, idx) => ({
-      number: num,
-      label: idx === 0 ? 'Primary Line' : `Backup Line ${idx}`,
-      status: idx === 0 ? 'Active' : 'Standby',
-      priority: idx + 1,
-      callsHandled: 0
-    }));
-  }
-
-  return defaultList;
 }
 
 let numbersPool = getInitialNumbers();
