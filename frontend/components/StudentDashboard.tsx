@@ -17,13 +17,18 @@ import {
   ShieldCheck,
   Headphones,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  PhoneForwarded,
+  MessageSquareText,
+  SlidersHorizontal
 } from 'lucide-react';
 
 import MmmutLogo from './MmmutLogo';
 import VedInsights from './ved/VedInsights';
 import VedDocuments from './ved/VedDocuments';
 import CurrentCallDashboard from './ved/CurrentCallDashboard';
+import VedOperations from './ved/VedOperations';
+import TabAdminNumbers from './TabAdminNumbers';
 
 interface StudentDashboardProps {
   studentRoll?: string;
@@ -36,8 +41,10 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:300
 export default function StudentDashboard({
   onLogout
 }: StudentDashboardProps) {
-  // Navigation: only 3 core tabs
-  const [activeTab, setActiveTab] = useState<'CallDashboard' | 'DataRoom' | 'Insights'>('CallDashboard');
+  // Navigation: 7 working pages related to the call bot
+  const [activeTab, setActiveTab] = useState<
+    'CallDashboard' | 'DataRoom' | 'Insights' | 'SystemPrompt' | 'NumbersPool' | 'TestDialer' | 'RoutingRules'
+  >('CallDashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [primaryHelpline, setPrimaryHelpline] = useState<string>('08047281152');
@@ -57,20 +64,44 @@ export default function StudentDashboard({
     {
       id: 'CallDashboard' as const,
       title: 'Call Dashboard',
-      description: 'Live call status and conversation',
+      description: 'Live call status & real-time audio transcript',
       icon: PhoneCall
     },
     {
       id: 'DataRoom' as const,
       title: 'Data Room',
-      description: 'Knowledge base and uploaded files',
+      description: 'Knowledge base, PDFs & CSV Q&A records',
       icon: FolderLock
     },
     {
       id: 'Insights' as const,
-      title: 'Insights',
-      description: 'Call counts and common questions',
+      title: 'Insights & FAQs',
+      description: 'Call outcomes & caller trending questions',
       icon: Activity
+    },
+    {
+      id: 'SystemPrompt' as const,
+      title: 'System Prompt & Persona',
+      description: 'Edit VED bot personality & rules',
+      icon: MessageSquareText
+    },
+    {
+      id: 'NumbersPool' as const,
+      title: 'Helpline Numbers Pool',
+      description: 'Inbound lines & priority failover list',
+      icon: PhoneForwarded
+    },
+    {
+      id: 'TestDialer' as const,
+      title: 'Test Call Simulator',
+      description: 'Trigger outbound test call to verify bot',
+      icon: Radio
+    },
+    {
+      id: 'RoutingRules' as const,
+      title: 'Carrier & Call Routing',
+      description: 'Exotel & Twilio concurrent routing rules',
+      icon: SlidersHorizontal
     }
   ];
 
@@ -144,20 +175,20 @@ export default function StudentDashboard({
 
       {/* Main Container: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Locked to the side, non-scrollable, showing 7 app features */}
+        {/* Left Sidebar: Locked to the side, strictly non-scrollable, listing working pages */}
         <aside
-          className={`fixed md:relative inset-y-0 md:inset-auto z-20 w-68 bg-white md:bg-[#f8fafc] border-r border-slate-200 flex flex-col justify-between shrink-0 h-full overflow-hidden select-none transition-transform duration-200 ease-in-out ${
+          className={`fixed md:relative inset-y-0 md:inset-auto z-20 w-72 bg-white md:bg-[#f8fafc] border-r border-slate-200 flex flex-col justify-between shrink-0 h-full overflow-hidden select-none transition-transform duration-200 ease-in-out ${
             mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
         >
-          {/* Top Section: Navigation Links */}
-          <div className="p-3 space-y-1 shrink-0">
+          {/* Top Section: Working Pages Navigation */}
+          <div className="p-3 space-y-1 overflow-y-auto flex-1">
             <div className="px-2 pb-2 mb-2 border-b border-slate-200/70 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Core Navigation
+                Helpline Working Modules
               </span>
               <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                v2.4
+                7 Pages
               </span>
             </div>
 
@@ -171,96 +202,23 @@ export default function StudentDashboard({
                     setActiveTab(item.id);
                     setMobileSidebarOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2.5 rounded-md transition-all flex items-start gap-3 cursor-pointer ${
+                  className={`w-full text-left px-3 py-2 rounded-md transition-all flex items-start gap-2.5 cursor-pointer ${
                     isActive
                       ? 'bg-blue-50 text-[#2563eb] border-l-4 border-[#2563eb] shadow-xs'
                       : 'text-slate-700 hover:bg-slate-100/70 border-l-4 border-transparent'
                   }`}
                 >
                   <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${isActive ? 'text-[#2563eb]' : 'text-slate-500'}`} />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold leading-tight">{item.title}</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5 leading-tight">{item.description}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold leading-tight truncate">{item.title}</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5 leading-tight truncate">{item.description}</span>
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {/* Middle Section: 7 App Features */}
-          <div className="px-3 py-2 shrink-0">
-            <div className="p-3 bg-white border border-slate-200/90 rounded-lg shadow-2xs space-y-2.5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Application Features
-                </span>
-                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  7 Active
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                {/* Feature 1 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <Radio className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">Live Voice Streaming & Barge-In</span>
-                </div>
-
-                {/* Feature 2 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">Real-Time Call Transcript</span>
-                </div>
-
-                {/* Feature 3 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <Database className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">CSV & Document Q&A Indexer</span>
-                </div>
-
-                {/* Feature 4 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">Grounded AI Knowledge Answers</span>
-                </div>
-
-                {/* Feature 5 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                    <Headphones className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">Dual Exotel & Twilio Telephony</span>
-                </div>
-
-                {/* Feature 6 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                    <Activity className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">Helpline Analytics & Call KPIs</span>
-                </div>
-
-                {/* Feature 7 */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-3 h-3" />
-                  </div>
-                  <span className="text-[11px] font-medium text-slate-700">Multi-Number Fallback Pool</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Section: Helpline Quick Status */}
+          {/* Bottom Section: Helpline Active Status */}
           <div className="p-3 border-t border-slate-200/70 bg-slate-50/70 space-y-2 shrink-0">
             <div className="flex items-center justify-between text-[10px] text-slate-500">
               <span className="font-semibold text-slate-600">Active Virtual PRI</span>
@@ -274,7 +232,7 @@ export default function StudentDashboard({
             </div>
             <div className="pt-1 border-t border-slate-200/50 flex items-center justify-between text-[9px] text-slate-400">
               <span>MMMUT Voice Node</span>
-              <span className="font-mono">ONLINE</span>
+              <span className="font-mono text-emerald-600 font-semibold">ONLINE</span>
             </div>
           </div>
         </aside>
@@ -298,19 +256,39 @@ export default function StudentDashboard({
               </span>
             </div>
 
-            {/* TAB 1: CURRENT CALL & DASHBOARD */}
+            {/* PAGE 1: CURRENT CALL & DASHBOARD */}
             {activeTab === 'CallDashboard' && (
               <CurrentCallDashboard primaryHelpline={primaryHelpline} />
             )}
 
-            {/* TAB 2: DATA ROOM */}
+            {/* PAGE 2: DATA ROOM */}
             {activeTab === 'DataRoom' && (
               <VedDocuments />
             )}
 
-            {/* TAB 3: INSIGHTS & ANALYTICS */}
+            {/* PAGE 3: INSIGHTS & FAQS */}
             {activeTab === 'Insights' && (
-              <VedInsights onQuickCall={() => setActiveTab('CallDashboard')} />
+              <VedInsights onQuickCall={() => setActiveTab('TestDialer')} />
+            )}
+
+            {/* PAGE 4: SYSTEM PROMPT & PERSONA */}
+            {activeTab === 'SystemPrompt' && (
+              <VedOperations subheading="System Prompt & Persona" />
+            )}
+
+            {/* PAGE 5: NUMBERS POOL */}
+            {activeTab === 'NumbersPool' && (
+              <VedOperations subheading="Numbers Pool & Priority" />
+            )}
+
+            {/* PAGE 6: TEST OUTBOUND CALL SIMULATOR */}
+            {activeTab === 'TestDialer' && (
+              <VedOperations subheading="Test Voice Call Simulator" />
+            )}
+
+            {/* PAGE 7: CARRIER & CALL ROUTING RULES */}
+            {activeTab === 'RoutingRules' && (
+              <TabAdminNumbers />
             )}
 
             <div className="mt-auto pt-10 pb-4">
