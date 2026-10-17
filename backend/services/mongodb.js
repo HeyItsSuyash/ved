@@ -180,6 +180,27 @@ async function addKnowledge(data) {
 }
 
 /**
+ * Update an existing knowledge source.
+ */
+async function updateKnowledge(id, data) {
+  try {
+    const updated = await prisma.knowledge.update({
+      where: { id },
+      data: {
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.content !== undefined ? { content: data.content } : {}),
+        ...(data.entity !== undefined ? { entity: data.entity } : {}),
+        ...(data.type !== undefined ? { type: data.type } : {})
+      }
+    });
+    return updated;
+  } catch (err) {
+    console.error('[PostgreSQL/Prisma] Error updating knowledge:', err.message);
+    return null;
+  }
+}
+
+/**
  * Delete a knowledge source.
  */
 async function deleteKnowledge(id) {
@@ -205,5 +226,6 @@ module.exports = {
   getAllAnalytics,
   getKnowledge,
   addKnowledge,
+  updateKnowledge,
   deleteKnowledge
 };

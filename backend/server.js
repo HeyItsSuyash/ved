@@ -34,7 +34,7 @@ const { initiateOutboundCall } = require("./twilio/outbound");
 const { handleTwilioWebhook } = require("./twilio/webhook");
 const { handleStreamConnection } = require("./twilio/stream");
 const { getCallSession, getAllCalls, updateCallSession } = require("./state/calls");
-const { getAllAnalytics, getKnowledge, addKnowledge, deleteKnowledge } = require("./services/mongodb");
+const { getAllAnalytics, getKnowledge, addKnowledge, updateKnowledge, deleteKnowledge } = require("./services/mongodb");
 const authRoutes = require('./routes/auth');
 const entityRoutes = require('./routes/entities');
 const analyticsRoutes = require('./routes/analytics');
@@ -243,6 +243,20 @@ app.post("/knowledge/upload", upload.single('file'), async (req, res) => {
   } catch (err) {
     console.error('[Knowledge Upload Error]:', err);
     res.status(500).json({ error: 'Failed to process and save file', details: err.message });
+  }
+});
+
+app.put("/knowledge/:id", async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const updated = await updateKnowledge(req.params.id, { title, content });
+    if (!updated) {
+      return res.status(404).json({ error: "Document not found or update failed" });
+    }
+    res.json({ success: true, document: updated });
+  } catch (err) {
+    console.error('[Knowledge Update Error]:', err);
+    res.status(500).json({ error: "Failed to update document", details: err.message });
   }
 });
 
