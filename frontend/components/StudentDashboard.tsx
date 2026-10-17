@@ -9,7 +9,15 @@ import {
   PhoneCall,
   Activity,
   Menu,
-  X
+  X,
+  Sparkles,
+  Radio,
+  MessageSquare,
+  Database,
+  ShieldCheck,
+  Headphones,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 
 import MmmutLogo from './MmmutLogo';
@@ -67,9 +75,9 @@ export default function StudentDashboard({
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans antialiased">
+    <div className="h-screen flex flex-col bg-slate-50 text-slate-800 font-sans antialiased overflow-hidden">
       {/* Top Header */}
-      <header className="sticky top-0 z-30 w-full bg-white border-b border-slate-200 shadow-xs h-15 flex items-center justify-between px-4 sm:px-6">
+      <header className="shrink-0 z-30 w-full bg-white border-b border-slate-200 shadow-xs h-15 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
@@ -136,15 +144,14 @@ export default function StudentDashboard({
 
       {/* Main Container: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: strictly 3 items */}
-        {/* Left Sidebar: Fixed / Non-scrollable with relevant system & helpline fields */}
+        {/* Left Sidebar: Locked to the side, non-scrollable, showing 7 app features */}
         <aside
-          className={`fixed md:sticky top-15 h-[calc(100vh-3.75rem)] left-0 z-20 w-68 bg-white md:bg-[#f8fafc] border-r border-slate-200 flex flex-col justify-between shrink-0 overflow-hidden transform transition-transform duration-200 ease-in-out select-none ${
+          className={`fixed md:relative inset-y-0 md:inset-auto z-20 w-68 bg-white md:bg-[#f8fafc] border-r border-slate-200 flex flex-col justify-between shrink-0 h-full overflow-hidden select-none transition-transform duration-200 ease-in-out ${
             mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
         >
           {/* Top Section: Navigation Links */}
-          <div className="p-3 space-y-1">
+          <div className="p-3 space-y-1 shrink-0">
             <div className="px-2 pb-2 mb-2 border-b border-slate-200/70 flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Core Navigation
@@ -180,62 +187,94 @@ export default function StudentDashboard({
             })}
           </div>
 
-          {/* Middle Section: Active Telephony & System Info */}
-          <div className="px-3 py-2 space-y-2">
-            {/* Primary Helpline Card */}
-            <div className="p-3 bg-white border border-slate-200/90 rounded-lg shadow-2xs space-y-2">
-              <div className="flex items-center justify-between">
+          {/* Middle Section: 7 App Features */}
+          <div className="px-3 py-2 shrink-0">
+            <div className="p-3 bg-white border border-slate-200/90 rounded-lg shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Active Helpline
+                  Application Features
                 </span>
                 <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  7 Active
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                  <PhoneCall className="w-3.5 h-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-mono font-bold text-slate-800 truncate">
-                    {primaryHelpline}
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    Exotel Virtual PRI
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 bg-white border border-slate-200/80 rounded-lg shadow-2xs">
-                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">Latency</div>
-                <div className="text-xs font-bold text-slate-800 mt-0.5 font-mono">~380ms</div>
-                <div className="text-[9px] text-emerald-600 font-medium">Real-time STT</div>
-              </div>
-              <div className="p-2.5 bg-white border border-slate-200/80 rounded-lg shadow-2xs">
-                <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">AI Engine</div>
-                <div className="text-xs font-bold text-slate-800 mt-0.5">VED Voice</div>
-                <div className="text-[9px] text-blue-600 font-medium">Sarvam / Gemini</div>
+              <div className="space-y-1.5">
+                {/* Feature 1 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <Radio className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Live Voice Streaming & Barge-In</span>
+                </div>
+
+                {/* Feature 2 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <MessageSquare className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Real-Time Call Transcript</span>
+                </div>
+
+                {/* Feature 3 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Database className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">CSV & Document Q&A Indexer</span>
+                </div>
+
+                {/* Feature 4 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Grounded AI Knowledge Answers</span>
+                </div>
+
+                {/* Feature 5 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                    <Headphones className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Dual Exotel & Twilio Telephony</span>
+                </div>
+
+                {/* Feature 6 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <Activity className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Helpline Analytics & Call KPIs</span>
+                </div>
+
+                {/* Feature 7 */}
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-3 h-3" />
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Multi-Number Fallback Pool</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Bottom Section: University Identity & Node Info */}
-          <div className="p-3 border-t border-slate-200/70 bg-slate-50/70 space-y-2">
+          {/* Bottom Section: Helpline Quick Status */}
+          <div className="p-3 border-t border-slate-200/70 bg-slate-50/70 space-y-2 shrink-0">
             <div className="flex items-center justify-between text-[10px] text-slate-500">
-              <span className="font-semibold text-slate-600">Telephony Gateway</span>
-              <span className="px-1.5 py-0.5 bg-slate-200/70 rounded text-[9px] font-mono font-medium text-slate-700">EXOTEL + TWILIO</span>
+              <span className="font-semibold text-slate-600">Active Virtual PRI</span>
+              <span className="font-mono font-bold text-slate-800 text-[11px]">{primaryHelpline}</span>
             </div>
             <div className="flex items-center justify-between text-[10px] text-slate-500">
               <span className="font-semibold text-slate-600">Knowledge Sync</span>
-              <span className="text-[9px] font-medium text-emerald-600">Active (Auto)</span>
+              <span className="text-[9px] font-medium text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="w-2.5 h-2.5" /> Auto-Synchronized
+              </span>
             </div>
             <div className="pt-1 border-t border-slate-200/50 flex items-center justify-between text-[9px] text-slate-400">
-              <span>MMMUT Voice Node 01</span>
-              <span className="font-mono">UP-EAST</span>
+              <span>MMMUT Voice Node</span>
+              <span className="font-mono">ONLINE</span>
             </div>
           </div>
         </aside>
