@@ -8,13 +8,12 @@ AI voice agent for the MMMUT admissions helpline. It answers calls, replies from
 
 ## Run locally
 
-Requirements: Node 20, ffmpeg, a Postgres database.
+Requirements: Node 20 and ffmpeg. The database is Supabase (project `ttbldcjymchexpcyvmup`); there is no local database.
 
 ```bash
 cd backend
-cp .env.example .env        # fill in values
+cp .env.example .env        # fill in values; DATABASE_URL is the Supabase session pooler
 npm install
-npx prisma db push
 npm run create-admin -- admin@example.com 'a-strong-password'   # or set ADMIN_EMAIL and ADMIN_PASSWORD
 npm run dev
 ```

@@ -6,7 +6,7 @@ Read `docs/ARCHITECTURE.md` before changing call handling, telephony or data sto
 
 ## Layout
 
-- `backend/` Node 20, Express 5, `ws`, Prisma (Postgres). Entry: `server.js`.
+- `backend/` Node 20, Express 5, `ws`, Prisma on Supabase Postgres (no local database). Entry: `server.js`.
   - `telephony/plivo/` Plivo webhooks, stream adapter, forwarding chain, signature checks
   - `pipeline/` provider-agnostic conversation (turn-taking, STT, LLM, TTS) and audio helpers
   - `services/` settings and forwarding (Postgres), call records, speech (Groq STT, Google TTS), LLM (Groq), DB access (`mongodb.js` is Prisma, legacy name)
@@ -23,7 +23,7 @@ Read `docs/ARCHITECTURE.md` before changing call handling, telephony or data sto
 
 ```bash
 cd backend && npm install && npm run dev      # port 3001, needs ffmpeg, DATABASE_URL and JWT_SECRET
-cd backend && npx prisma db push               # after schema changes (npm start does this on deploy)
+cd backend && npm start                        # checks env, syncs the schema to Supabase, locks down RLS, starts
 cd frontend && npm install && npm run dev     # port 3005, set NEXT_PUBLIC_BACKEND_URL
 cd frontend && npx tsc --noEmit && npm run lint
 ```
