@@ -39,6 +39,7 @@ Set these on the backend host (see `backend/.env.example`):
 | `TELEPHONY_PROVIDER` | `plivo` |
 | `ELEVENLABS_API_KEY` | The agent's voice (Ayush, male, by default; `ELEVENLABS_VOICE_ID` overrides it). Hold and busy messages are played in the same voice. Without a key, the free Google voice and Plivo's built-in voices are used. |
 | `GROQ_API_KEY` | Speech to text and the LLM. |
+| `DATABASE_URL` | Required. Postgres connection string; on Render, create a PostgreSQL database in the same region and use its Internal Database URL. |
 | `JWT_SECRET` | Required; the backend refuses to start without it. |
 | `DASHBOARD_ORIGIN` | The dashboard URL, to restrict CORS. |
 

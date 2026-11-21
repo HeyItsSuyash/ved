@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "prisma db push --skip-generate && node server.js",
+    "start": "node scripts/start.js",
     "build": "npx prisma generate && npx prisma db push",
     "create-admin": "node scripts/create-admin.js"
   },
