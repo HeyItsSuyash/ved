@@ -25,3 +25,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+
+# Graphify: commit graph.json and GRAPH_REPORT.md only
+graphify-out/cache/
+graphify-out/.graphify_*
+graphify-out/manifest.json
+graphify-out/graph.html
