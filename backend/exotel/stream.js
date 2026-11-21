@@ -191,6 +191,7 @@ function handleExotelStreamConnection(ws) {
 
     } else if (event === 'stop' || event === 'close') {
       console.log(`[ExotelStream] Stream stopped: ${streamSid}`);
+      updateCallSession(callSid, { endTime: new Date().toISOString(), status: 'ended' });
       if (global.broadcastEvent) {
         global.broadcastEvent('call_ended', { callSid });
       }
@@ -332,7 +333,9 @@ async function processPostCallSummary(callSid) {
       transcript: session.turns,
       summary: summary.summary,
       intent: summary.key_intent,
-      resolution: summary.resolution,
+      resolution_status: summary.resolution,
+      startTime: session.startTime,
+      endTime: session.endTime || new Date().toISOString(),
       meta: summary.important_details
     };
 

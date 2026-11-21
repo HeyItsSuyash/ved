@@ -323,20 +323,26 @@ app.get("/api/ved/insights", async (req, res) => {
       dbCalls = [];
     }
 
-    const liveSessions = getAllCalls();
+    // Ended calls are already saved to the database, so only count live sessions still in progress.
+    const liveSessions = getAllCalls().filter(c => !c.endTime);
     const allRecords = [...liveSessions, ...(Array.isArray(dbCalls) ? dbCalls : [])];
     const totalCalls = allRecords.length;
 
+    // Duration is only known for calls saved with start and end times.
     let totalSeconds = 0;
+    let timedCalls = 0;
     allRecords.forEach(c => {
-      if (c.callData && c.callData.duration) {
-        totalSeconds += parseInt(c.callData.duration, 10) || 0;
-      } else if (c.turns && c.turns.length > 0) {
-        totalSeconds += c.turns.length * 10;
+      const start = c.callData?.startTime || c.startTime;
+      const end = c.callData?.endTime || c.endTime;
+      if (!start || !end) return;
+      const secs = (new Date(end) - new Date(start)) / 1000;
+      if (Number.isFinite(secs) && secs >= 0) {
+        totalSeconds += Math.round(secs);
+        timedCalls += 1;
       }
     });
 
-    const avgSeconds = totalCalls > 0 ? Math.round(totalSeconds / totalCalls) : 0;
+    const avgSeconds = timedCalls > 0 ? Math.round(totalSeconds / timedCalls) : 0;
     const formatDuration = (sec) => {
       if (!sec || sec === 0) return '0s';
       const mins = Math.floor(sec / 60);
@@ -345,11 +351,13 @@ app.get("/api/ved/insights", async (req, res) => {
     };
 
     // Calculate outcomes from actual sessions
+    const outcomeOf = (c) => c.resolution_status || c.callData?.resolution || c.resolution;
     const outcomes = {
-      resolved: allRecords.filter(c => c.resolution_status === 'resolved' || c.resolution === 'resolved').length,
+      resolved: allRecords.filter(c => outcomeOf(c) === 'resolved').length,
+      unresolved: allRecords.filter(c => outcomeOf(c) === 'unresolved').length,
       in_progress: liveSessions.length,
-      follow_up_needed: allRecords.filter(c => c.resolution_status === 'follow_up_needed' || c.resolution === 'follow_up_needed').length,
-      escalated: allRecords.filter(c => c.resolution_status === 'escalated' || c.resolution === 'escalated').length
+      follow_up_needed: allRecords.filter(c => outcomeOf(c) === 'follow_up_needed').length,
+      escalated: allRecords.filter(c => outcomeOf(c) === 'escalated').length
     };
 
     const successRate = totalCalls > 0 ? Math.round((outcomes.resolved / totalCalls) * 100) : 0;
@@ -358,8 +366,9 @@ app.get("/api/ved/insights", async (req, res) => {
     const faqs = [];
     const questionMap = new Map();
     allRecords.forEach(c => {
-      if (Array.isArray(c.turns)) {
-        c.turns.filter(t => t.speaker === 'user').forEach(t => {
+      const turns = Array.isArray(c.turns) ? c.turns : c.callData?.transcript;
+      if (Array.isArray(turns)) {
+        turns.filter(t => t.speaker === 'user').forEach(t => {
           const q = t.text?.trim();
           if (q && q.length > 5) {
             questionMap.set(q, (questionMap.get(q) || 0) + 1);
@@ -373,16 +382,6 @@ app.get("/api/ved/insights", async (req, res) => {
     });
     faqs.sort((a, b) => b.count - a.count);
 
-    const trends = [
-      { date: "Mon", calls: 0, talkTimeMins: 0, successRate: 0 },
-      { date: "Tue", calls: 0, talkTimeMins: 0, successRate: 0 },
-      { date: "Wed", calls: 0, talkTimeMins: 0, successRate: 0 },
-      { date: "Thu", calls: 0, talkTimeMins: 0, successRate: 0 },
-      { date: "Fri", calls: 0, talkTimeMins: 0, successRate: 0 },
-      { date: "Sat", calls: 0, talkTimeMins: 0, successRate: 0 },
-      { date: "Today", calls: totalCalls, talkTimeMins: Math.round(totalSeconds / 60), successRate }
-    ];
-
     res.json({
       totalCalls,
       totalTalkTime: formatDuration(totalSeconds),
@@ -394,7 +393,6 @@ app.get("/api/ved/insights", async (req, res) => {
       faqs: faqs.slice(0, 10),
       outcomes,
       successRate,
-      trends,
       activeLines: getNumbersPool().filter(n => n.status === 'Active').length,
       totalLines: getNumbersPool().length
     });

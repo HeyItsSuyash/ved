@@ -1,103 +1,16 @@
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #171717;
-  --color-sidebar: #fbfbfb;
-  --color-border: #e5e5e5;
-  --color-primary: #000000;
-  --color-secondary: #737373;
-  --color-accent: #f5f5f5;
-  
-  --font-sans: 'Satoshi', var(--font-inter), 'Inter', -apple-system, sans-serif;
-  --font-display: 'Space Grotesk', var(--font-space-grotesk), sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
-@layer base {
-  h1, h2, h3, h4, h5, h6, .font-display {
-    font-family: 'Space Grotesk', var(--font-space-grotesk), sans-serif !important;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  font-family: 'Satoshi', var(--font-inter), 'Inter', -apple-system, sans-serif;
-  @apply bg-background text-foreground;
+  background: var(--color-zinc-50);
+  color: var(--color-zinc-900);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
 }
-
-@layer utilities {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}
-
-.notebook-border {
-  border: 1px solid var(--color-border);
-}
-
-.sidebar-item-active {
-  background-color: var(--color-accent);
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-input, textarea, select {
-  @apply bg-transparent border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all;
-}
-
-.input-with-icon {
-  padding-left: 3.5rem !important;
-}
-
-button {
-  @apply transition-all duration-200;
-}
-
-/* Premium Styling Utilities */
-.radial-mesh {
-  background: radial-gradient(circle at 50% 50%, rgba(10, 10, 10, 0.8) 0%, rgba(2, 2, 2, 1) 100%);
-}
-
-.premium-glow-orb {
-  filter: blur(120px);
-  opacity: 0.15;
-  mix-blend-mode: plus-lighter;
-  pointer-events: none;
-}
-
-.card-glass {
-  background: rgba(255, 255, 255, 0.01);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.card-glass:hover {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
-}
-
-.noise-overlay {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  opacity: 0.015;
-  pointer-events: none;
-  z-index: 1;
-}
-
-

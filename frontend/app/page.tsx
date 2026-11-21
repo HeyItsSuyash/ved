@@ -1,83 +1,58 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import StudentLogin from '../components/StudentLogin';
-import StudentDashboard from '../components/StudentDashboard';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Dashboard from '@/components/Dashboard';
+import { ApiError, api, clearSession, getToken, type User } from '@/lib/api';
+import { Loading, Notice } from '@/components/ui';
 
-export default function StudentPortalRoot() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [studentRoll, setStudentRoll] = useState('2023CSD0622');
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [mounted, setMounted] = useState(false);
+export default function Home() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
-    const storedAuth = localStorage.getItem('mmmut_student_auth');
-    const storedRoll = localStorage.getItem('mmmut_student_roll');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedAuth === 'true' && (storedRoll || storedUser)) {
-      setIsLoggedIn(true);
-      if (storedRoll) setStudentRoll(storedRoll);
-      if (storedUser) {
-        try {
-          setUserProfile(JSON.parse(storedUser));
-        } catch {
-          // ignore corrupted json
+    if (!getToken()) {
+      router.replace('/login');
+      return;
+    }
+    api<User>('/auth/me')
+      .then((u) => {
+        setUser(u);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          clearSession();
+          router.replace('/login');
+        } else {
+          setError(err.message);
         }
-      }
-    }
-  }, []);
+      });
+  }, [router, attempt]);
 
-  const handleLogin = (userOrRoll: any) => {
-    setIsLoggedIn(true);
-    let roll = '2023CSD0622';
-    if (typeof userOrRoll === 'object' && userOrRoll !== null) {
-      setUserProfile(userOrRoll);
-      roll = userOrRoll.rollNumber || userOrRoll.email || userOrRoll.name || '2023CSD0622';
-    } else if (typeof userOrRoll === 'string') {
-      roll = userOrRoll;
-    }
-    setStudentRoll(roll);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('mmmut_student_auth', 'true');
-      localStorage.setItem('mmmut_student_roll', roll);
-    }
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserProfile(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('mmmut_student_auth');
-      localStorage.removeItem('mmmut_student_roll');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
-  };
-
-  // Prevent hydration mismatch
-  if (!mounted) {
+  if (user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#edf0f5]">
-        <div className="text-slate-400 text-xs font-medium">Loading Admission Support Portal...</div>
-      </div>
+      <Dashboard
+        user={user}
+        onSignOut={() => {
+          clearSession();
+          router.replace('/login');
+        }}
+      />
     );
   }
 
   return (
-    <>
-      {isLoggedIn ? (
-        <StudentDashboard
-          studentRoll={studentRoll}
-          initialUser={userProfile}
-          onLogout={handleLogout}
-        />
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
+      {error ? (
+        <div className="w-full max-w-sm">
+          <Notice onRetry={() => setAttempt((n) => n + 1)}>{error}</Notice>
+        </div>
       ) : (
-        <StudentLogin
-          onLoginSuccess={handleLogin}
-        />
+        <Loading />
       )}
-    </>
+    </div>
   );
 }
