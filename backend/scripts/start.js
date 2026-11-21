@@ -6,7 +6,8 @@ const fs = require('fs');
 
 // Local development reads backend/.env (or .env.local); on Render the variables come from the dashboard.
 const root = path.join(__dirname, '..');
-require('dotenv').config({ path: path.join(root, fs.existsSync(path.join(root, '.env.local')) ? '.env.local' : '.env') });
+const envFile = path.join(root, fs.existsSync(path.join(root, '.env.local')) ? '.env.local' : '.env');
+if (fs.existsSync(envFile)) require('dotenv').config({ path: envFile, quiet: true });
 
 const REQUIRED = {
   DATABASE_URL: 'Postgres connection string (Render: your database > Connections > Internal Database URL)',
@@ -22,10 +23,19 @@ const RECOMMENDED = {
   ELEVENLABS_API_KEY: 'the agent voice; without it the basic Google voice is used',
 };
 
+// Print which variables this process can see (names only, never values), so a deploy
+// log shows at a glance whether the host passed its settings through.
+const OTHER = ['TELEPHONY_PROVIDER', 'DASHBOARD_ORIGIN', 'PORT'];
+console.log('[startup] Environment check (set / missing):');
+for (const k of [...Object.keys(REQUIRED), ...Object.keys(RECOMMENDED), ...OTHER]) {
+  console.log(`  ${process.env[k] ? 'set    ' : 'MISSING'} ${k}`);
+}
+
 const missing = Object.keys(REQUIRED).filter((k) => !process.env[k]);
 if (missing.length) {
-  console.error('[startup] Cannot start. Missing environment variables:');
+  console.error('[startup] Cannot start. Missing required environment variables:');
   for (const k of missing) console.error(`  - ${k}: ${REQUIRED[k]}`);
+  console.error('[startup] If you added them on the host, check they are on this service (not only an unlinked environment group) and that the change was saved and redeployed.');
   process.exit(1);
 }
 
