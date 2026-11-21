@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js",
+    "start": "prisma db push --skip-generate && node server.js",
     "build": "npx prisma generate && npx prisma db push",
     "create-admin": "node scripts/create-admin.js"
   },
@@ -25,6 +25,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "pdf-parse": "^1.1.1",
+    "plivo": "^4.79.0",
     "prisma": "^5.22.0",
     "twilio": "^5.13.0",
     "ws": "^8.19.0"

@@ -78,6 +78,7 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}): Pr
   return data as T;
 }
 
+/** The live-events socket. Browsers cannot set headers on a WebSocket, so the token goes in the query. */
 export function liveSocketUrl(): string {
-  return BACKEND_URL.replace(/^http/, 'ws') + '/live';
+  return `${BACKEND_URL.replace(/^http/, 'ws')}/live?token=${encodeURIComponent(getToken() || '')}`;
 }

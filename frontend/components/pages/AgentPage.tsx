@@ -1,18 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { PhoneOutgoing } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useApi } from '@/lib/useApi';
+import { useSettings } from '@/lib/useSettings';
 import { Button, Card, Field, Input, Loading, Notice, PageHeader, Textarea } from '@/components/ui';
 
 export default function AgentPage() {
   return (
     <>
-      <PageHeader
-        title="Agent"
-        description="Instructions the agent follows on every call, and a way to test it."
-      />
+      <PageHeader title="Agent" description="What the agent says first, the rules it follows on every call, and a way to test it." />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
         <InstructionsCard />
         <TestCallCard />
@@ -22,30 +19,48 @@ export default function AgentPage() {
 }
 
 function InstructionsCard() {
-  const { data, error, loading, reload } = useApi<{ prompt: string }>('/api/ved/prompt');
-  const [draft, setDraft] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<{ tone: 'green' | 'red'; text: string } | null>(null);
+  const { settings, error, saving, save, reload } = useSettings();
+  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (data?.prompt !== undefined) setDraft(data.prompt);
-  }, [data?.prompt]);
+  if (!settings) {
+    return (
+      <Card title="Instructions">{error ? <Notice onRetry={reload}>{error}</Notice> : <Loading />}</Card>
+    );
+  }
+  return (
+    <InstructionsForm
+      key={`${settings.greeting}\u0000${settings.systemPrompt}`}
+      initialGreeting={settings.greeting}
+      initialPrompt={settings.systemPrompt}
+      error={error}
+      saving={saving}
+      saved={saved}
+      onEdit={() => setSaved(false)}
+      onSave={async (greeting, systemPrompt) => setSaved(await save({ greeting, systemPrompt }))}
+    />
+  );
+}
 
-  const dirty = data ? draft !== data.prompt : false;
-
-  const save = async () => {
-    setSaving(true);
-    setStatus(null);
-    try {
-      await api('/api/ved/prompt', { method: 'POST', body: JSON.stringify({ prompt: draft }) });
-      await reload();
-      setStatus({ tone: 'green', text: 'Saved. New calls use these instructions.' });
-    } catch (err) {
-      setStatus({ tone: 'red', text: err instanceof Error ? err.message : 'Could not save' });
-    } finally {
-      setSaving(false);
-    }
-  };
+function InstructionsForm({
+  initialGreeting,
+  initialPrompt,
+  error,
+  saving,
+  saved,
+  onEdit,
+  onSave,
+}: {
+  initialGreeting: string;
+  initialPrompt: string;
+  error: string | null;
+  saving: boolean;
+  saved: boolean;
+  onEdit: () => void;
+  onSave: (greeting: string, prompt: string) => Promise<void>;
+}) {
+  const [greeting, setGreeting] = useState(initialGreeting);
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const dirty = greeting !== initialGreeting || prompt !== initialPrompt;
 
   return (
     <Card
@@ -54,36 +69,39 @@ function InstructionsCard() {
       actions={
         <>
           {dirty && (
-            <Button size="sm" onClick={() => setDraft(data?.prompt ?? '')}>
+            <Button size="sm" onClick={() => { setGreeting(initialGreeting); setPrompt(initialPrompt); }}>
               Discard
             </Button>
           )}
-          <Button size="sm" variant="primary" onClick={save} loading={saving} disabled={!dirty || !draft.trim()}>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => onSave(greeting, prompt)}
+            loading={saving}
+            disabled={!dirty || !greeting.trim() || !prompt.trim()}
+          >
             Save
           </Button>
         </>
       }
     >
-      {error ? (
-        <Notice onRetry={reload}>{error}</Notice>
-      ) : loading && !data ? (
-        <Loading />
-      ) : (
-        <div className="space-y-3">
-          {status && <Notice tone={status.tone}>{status.text}</Notice>}
+      <div className="space-y-4">
+        {error && <Notice>{error}</Notice>}
+        {saved && !dirty && <Notice tone="green">Saved. New calls use these instructions.</Notice>}
+        <Field label="Greeting" htmlFor="greeting" hint="The first thing callers hear.">
+          <Input id="greeting" value={greeting} onChange={(e) => { setGreeting(e.target.value); onEdit(); }} />
+        </Field>
+        <Field label="Instructions" htmlFor="prompt">
           <Textarea
-            value={draft}
-            onChange={(e) => { setDraft(e.target.value); setStatus(null); }}
-            rows={22}
+            id="prompt"
+            value={prompt}
+            onChange={(e) => { setPrompt(e.target.value); onEdit(); }}
+            rows={20}
             className="font-mono text-[13px]"
-            aria-label="Agent instructions"
           />
-          <div className="flex justify-between text-xs text-zinc-500">
-            <span>Stored in backend memory: a backend restart restores the default.</span>
-            <span className="tabular-nums">{draft.length.toLocaleString()} characters</span>
-          </div>
-        </div>
-      )}
+        </Field>
+        <div className="text-right text-xs text-zinc-500 tabular-nums">{prompt.length.toLocaleString()} characters</div>
+      </div>
     </Card>
   );
 }
@@ -98,14 +116,8 @@ function TestCallCard() {
     setCalling(true);
     setResult(null);
     try {
-      const res = await api<{ callSid: string; provider?: string }>('/call/outbound', {
-        method: 'POST',
-        body: JSON.stringify({ to: number.trim() }),
-      });
-      setResult({
-        tone: 'green',
-        text: `Calling ${number.trim()}${res.provider ? ` via ${res.provider}` : ''}. Follow it on the Live calls page.`,
-      });
+      await api('/api/test-call', { method: 'POST', body: JSON.stringify({ to: number.trim() }) });
+      setResult({ tone: 'green', text: `Calling ${number.trim()}. Answer and talk to the agent; follow it on Live calls.` });
     } catch (err) {
       setResult({ tone: 'red', text: err instanceof Error ? err.message : 'Call failed' });
     } finally {
@@ -114,9 +126,9 @@ function TestCallCard() {
   };
 
   return (
-    <Card title="Test call" description="The agent calls this number so you can talk to it.">
+    <Card title="Test call" description="The helpline calls this phone and the agent answers.">
       <form onSubmit={call} className="space-y-4">
-        <Field label="Phone number" htmlFor="test-number" hint="Include the country code, e.g. +91 98765 43210.">
+        <Field label="Phone number" htmlFor="test-number" hint="An Indian mobile, e.g. +91 98765 43210.">
           <Input
             id="test-number"
             type="tel"

@@ -15,6 +15,9 @@ type CallRecord = {
   intent: string | null;
   resolution_status: string | null;
   createdAt: string;
+  outcome?: string | null;
+  forwarded_to?: string | null;
+  duration_s?: number | null;
   callData?: {
     transcript?: Turn[];
     resolution?: string;
@@ -32,6 +35,12 @@ export function OutcomeBadge({ outcome }: { outcome: string }) {
   if (outcome === 'escalated') return <Badge tone="amber">Escalated</Badge>;
   if (outcome === 'unresolved' || outcome === 'follow_up_needed') return <Badge tone="red">Unresolved</Badge>;
   return <Badge>Unknown</Badge>;
+}
+
+function handledBy(c: CallRecord): string {
+  if (c.outcome === 'forwarded') return c.forwarded_to ? `Staff · ${c.forwarded_to}` : 'Staff · no answer';
+  if (c.outcome === 'missed') return 'Missed';
+  return 'Agent';
 }
 
 export default function CallLogPage() {
@@ -97,6 +106,7 @@ export default function CallLogPage() {
                   <th className="px-3 py-2.5 font-medium">Time</th>
                   <th className="px-3 py-2.5 font-medium">Caller</th>
                   <th className="px-3 py-2.5 font-medium">Topic</th>
+                  <th className="px-3 py-2.5 font-medium">Handled by</th>
                   <th className="px-3 py-2.5 font-medium">Outcome</th>
                   <th className="px-3 py-2.5 font-medium text-right">Duration</th>
                 </tr>
@@ -104,7 +114,7 @@ export default function CallLogPage() {
               <tbody>
                 {rows.map((c) => {
                   const isOpen = open === c.id;
-                  const seconds = secondsBetween(c.callData?.startTime, c.callData?.endTime);
+                  const seconds = c.duration_s ?? secondsBetween(c.callData?.startTime, c.callData?.endTime);
                   const transcript = c.callData?.transcript || [];
                   return (
                     <React.Fragment key={c.id}>
@@ -118,6 +128,7 @@ export default function CallLogPage() {
                         <td className="px-3 py-2.5 whitespace-nowrap text-zinc-600">{formatDateTime(c.createdAt)}</td>
                         <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-zinc-900">{c.phone || 'Unknown'}</td>
                         <td className="px-3 py-2.5 text-zinc-700 max-w-[280px] truncate">{c.intent || '—'}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-zinc-600">{handledBy(c)}</td>
                         <td className="px-3 py-2.5">
                           <OutcomeBadge outcome={outcomeOf(c)} />
                         </td>
@@ -128,7 +139,7 @@ export default function CallLogPage() {
                       {isOpen && (
                         <tr className="border-b border-zinc-200 bg-zinc-50/60">
                           <td />
-                          <td colSpan={5} className="px-3 py-4">
+                          <td colSpan={6} className="px-3 py-4">
                             <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
                               <div>
                                 <h3 className="text-xs font-medium text-zinc-500 mb-1.5">Summary</h3>

@@ -16,8 +16,6 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      - key: SARVAM_API_KEY
-        sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
@@ -25,7 +23,21 @@ services:
       - key: TWILIO_PHONE_NUMBER
         sync: false
       - key: TELEPHONY_PROVIDER
-        value: exotel
+        value: plivo
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DASHBOARD_ORIGIN
+        sync: false
+      - key: PLIVO_AUTH_ID
+        sync: false
+      - key: PLIVO_AUTH_TOKEN
+        sync: false
+      - key: PLIVO_NUMBER
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
       - key: EXOTEL_ACCOUNT_SID
         sync: false
       - key: EXOTEL_API_KEY

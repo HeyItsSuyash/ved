@@ -119,8 +119,8 @@ STRICT ANSWERING BOUNDARIES:
     contextSection += `### PREVIOUS INTERACTION MEMORY ###\nHistory of past calls with this user:\n${memoryString}\n\nNOTE: If the current DATA ROOM knowledge contradicts this history, strictly use the DATA ROOM facts.\n#######################################\n\n`;
   }
 
-  const { getVedPrompt } = require('../state/ved');
-  const activePromptTemplate = instructions || getVedPrompt() || SYSTEM_PROMPT.replace('Company Name', 'the organization');
+  const { getSettings } = require('./settings');
+  const activePromptTemplate = instructions || getSettings().systemPrompt || SYSTEM_PROMPT.replace('Company Name', 'the organization');
 
   const jsonFormatRequirement = `
 MANDATORY MULTILINGUAL & RESPONSE FORMAT:
@@ -136,8 +136,10 @@ You MUST respond with a valid JSON object matching this exact structure:
   "entities": ["list", "of", "key", "entities"],
   "sentiment": "positive | neutral | negative | frustrated | satisfied",
   "action_item": null,
-  "language": "language code of the spoken response (e.g. en, hi, hinglish, es, fr, de, ta, te, bn, mr, gu)"
+  "language": "language code of the spoken response (e.g. en, hi, hinglish, es, fr, de, ta, te, bn, mr, gu)",
+  "transfer_to_human": false
 }
+Set "transfer_to_human" to true only when the caller asks to speak to a person, or when you could not answer their last two questions.
 Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 `;
 

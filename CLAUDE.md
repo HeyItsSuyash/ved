@@ -2,17 +2,19 @@
 
 AI phone agent for the MMMUT admissions and counselling helpline. Callers dial a number, VED answers from the knowledge base, and calls it cannot take are forwarded to staff.
 
-Read `docs/ARCHITECTURE.md` before changing call handling, telephony or data storage. It describes the current system, the target (Plivo, busy-line forwarding, settings in Postgres) and the order of work.
+Read `docs/ARCHITECTURE.md` before changing call handling, telephony or data storage, and `docs/PLIVO_SETUP.md` for the Plivo account steps. Plivo skills are available (`plivo-audio-streaming`, `plivo-voice-xml`, `plivo-cli`); follow them for anything that touches the Plivo account.
 
 ## Layout
 
 - `backend/` Node 20, Express 5, `ws`, Prisma (Postgres). Entry: `server.js`.
-  - `exotel/`, `twilio/` current telephony pipelines (to be replaced by `telephony/plivo/`)
-  - `services/` speech (Groq STT, Google TTS), LLM (Groq), DB access (`mongodb.js` is Prisma, legacy name)
-  - `state/` in-memory call sessions, number pool, system prompt
-  - `routes/` auth, admin, entities, analytics
+  - `telephony/plivo/` Plivo webhooks, stream adapter, forwarding chain, signature checks
+  - `pipeline/` provider-agnostic conversation (turn-taking, STT, LLM, TTS) and audio helpers
+  - `services/` settings and forwarding (Postgres), call records, speech (Groq STT, Google TTS), LLM (Groq), DB access (`mongodb.js` is Prisma, legacy name)
+  - `routes/` auth, settings/forwarding/telephony (`settings.js`), legacy admin and entities
+  - `exotel/`, `twilio/` legacy pipelines, to be removed once Plivo is live
+  - `state/calls.js` in-memory live call sessions
 - `frontend/` Next.js 16 App Router, React 19, Tailwind 4. The dashboard is a single client app.
-  - `app/page.tsx` auth gate, `app/login/page.tsx` sign-in
+  - `app/page.tsx` auth gate, `app/login/page.tsx` sign-in, `app/api/plivo-fallback` Plivo fallback XML
   - `components/Dashboard.tsx` shell and navigation
   - `components/pages/` one file per dashboard page
   - `components/ui.tsx` shared primitives; `lib/api.ts` backend URL and authenticated fetch
@@ -20,7 +22,8 @@ Read `docs/ARCHITECTURE.md` before changing call handling, telephony or data sto
 ## Commands
 
 ```bash
-cd backend && npm install && npm run dev      # port 3001, needs ffmpeg and DATABASE_URL
+cd backend && npm install && npm run dev      # port 3001, needs ffmpeg, DATABASE_URL and JWT_SECRET
+cd backend && npx prisma db push               # after schema changes (npm start does this on deploy)
 cd frontend && npm install && npm run dev     # port 3005, set NEXT_PUBLIC_BACKEND_URL
 cd frontend && npx tsc --noEmit && npm run lint
 ```

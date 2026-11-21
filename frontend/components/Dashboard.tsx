@@ -9,7 +9,7 @@ import {
   ListOrdered,
   LogOut,
   Menu,
-  Phone,
+  PhoneForwarded,
   Radio,
   X,
   type LucideIcon,
@@ -21,9 +21,9 @@ import CallLogPage from '@/components/pages/CallLogPage';
 import KnowledgePage from '@/components/pages/KnowledgePage';
 import InsightsPage from '@/components/pages/InsightsPage';
 import AgentPage from '@/components/pages/AgentPage';
-import NumbersPage from '@/components/pages/NumbersPage';
+import ForwardingPage from '@/components/pages/ForwardingPage';
 
-type PageId = 'live' | 'calls' | 'knowledge' | 'insights' | 'agent' | 'numbers';
+type PageId = 'live' | 'calls' | 'knowledge' | 'insights' | 'agent' | 'forwarding';
 
 const NAV: { id: PageId; label: string; icon: LucideIcon }[] = [
   { id: 'live', label: 'Live calls', icon: Radio },
@@ -31,7 +31,7 @@ const NAV: { id: PageId; label: string; icon: LucideIcon }[] = [
   { id: 'knowledge', label: 'Knowledge base', icon: BookOpen },
   { id: 'insights', label: 'Insights', icon: BarChart3 },
   { id: 'agent', label: 'Agent', icon: Bot },
-  { id: 'numbers', label: 'Numbers', icon: Phone },
+  { id: 'forwarding', label: 'Forwarding', icon: PhoneForwarded },
 ];
 
 function pageFromHash(): PageId {
@@ -52,8 +52,8 @@ export default function Dashboard({ user, onSignOut }: { user: User; onSignOut: 
   }, []);
 
   useEffect(() => {
-    api<{ numbers: { number: string }[] }>('/api/ved/numbers')
-      .then((d) => setHelpline(d.numbers?.[0]?.number ?? null))
+    api<{ helpline: string | null }>('/api/telephony/status')
+      .then((d) => setHelpline(d.helpline ?? null))
       .catch(() => setHelpline(null));
   }, []);
 
@@ -163,7 +163,7 @@ export default function Dashboard({ user, onSignOut }: { user: User; onSignOut: 
           {page === 'knowledge' && <KnowledgePage />}
           {page === 'insights' && <InsightsPage />}
           {page === 'agent' && <AgentPage />}
-          {page === 'numbers' && <NumbersPage />}
+          {page === 'forwarding' && <ForwardingPage />}
         </div>
       </main>
     </div>

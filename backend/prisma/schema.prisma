@@ -37,14 +37,22 @@ model Entity {
 }
 
 model Call {
-  id                String   @id @default(uuid()) @db.Uuid
-  entity_id         String?  @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  entity_id         String?   @db.Uuid
   phone             String?
   summary           String?
   resolution_status String?
   intent            String?
-  createdAt         DateTime @default(now())
-  callData          Json?    @default("{}")
+  createdAt         DateTime  @default(now())
+  callData          Json?     @default("{}")
+  provider          String?
+  provider_call_id  String?
+  started_at        DateTime?
+  ended_at          DateTime?
+  duration_s        Int?
+  /// answered_by_ai | forwarded | missed
+  outcome           String?
+  forwarded_to      String?
 
   entity            Entity?  @relation(fields: [entity_id], references: [id])
 
@@ -83,4 +91,30 @@ model Lead {
   entity    Entity?  @relation(fields: [entity_id], references: [id])
 
   @@map("leads")
+}
+
+/// Single row (id = 1) holding agent and call-routing settings.
+model Setting {
+  id                    Int      @id @default(1)
+  systemPrompt          String   @map("system_prompt")
+  greeting              String
+  unavailableMessage    String   @map("unavailable_message")
+  agentEnabled          Boolean  @default(true) @map("agent_enabled")
+  maxConcurrentCalls    Int      @default(5) @map("max_concurrent_calls")
+  forwardTimeoutSeconds Int      @default(20) @map("forward_timeout_seconds")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+/// Staff numbers a call is forwarded to, tried in ascending position.
+model ForwardingNumber {
+  id        String   @id @default(uuid()) @db.Uuid
+  number    String   @unique
+  label     String   @default("")
+  position  Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("forwarding_numbers")
 }

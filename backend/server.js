@@ -10,6 +10,11 @@ try {
   process.exit(1);
 }
 
+if (!process.env.JWT_SECRET) {
+  console.error('[startup] JWT_SECRET is not set. Refusing to start: sign-in tokens would be forgeable.');
+  process.exit(1);
+}
+
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -20,17 +25,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configure permissive CORS for the frontend deployed on Vercel
+// DASHBOARD_ORIGIN restricts browser access to the dashboard's origin(s), comma-separated.
+const allowedOrigins = (process.env.DASHBOARD_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
 const corsOptions = {
-  origin: '*', // Better to specify exact origin in prod
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin: allowedOrigins.length ? allowedOrigins : '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
 
-const { initiateOutboundCall } = require("./twilio/outbound");
 const { handleTwilioWebhook } = require("./twilio/webhook");
 const { handleStreamConnection } = require("./twilio/stream");
 const { getCallSession, getAllCalls, updateCallSession } = require("./state/calls");
@@ -40,7 +45,21 @@ const entityRoutes = require('./routes/entities');
 const analyticsRoutes = require('./routes/analytics');
 const adminRoutes = require('./routes/admin');
 
+const { authenticate } = require('./middleware/auth');
+const settingsRoutes = require('./routes/settings');
+const plivoWebhooks = require('./telephony/plivo/webhooks');
+const { handlePlivoStream } = require('./telephony/plivo/stream');
+const { loadSettings } = require('./services/settings');
+const jwt = require('jsonwebtoken');
+
 app.use("/auth", authRoutes);
+
+// Telephony webhooks authenticate with the provider's signature, not a user token.
+app.use('/plivo', plivoWebhooks);
+
+// Everything the dashboard uses requires a signed-in user.
+app.use(['/calls', '/call', '/analytics', '/knowledge', '/api'], authenticate);
+app.use('/api', settingsRoutes);
 app.use('/entities', entityRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/admin', adminRoutes);
@@ -52,76 +71,37 @@ app.get(["/", "/health"], (req, res) => {
 const { handleExotelVoiceWebhook, handleExotelStatusCallback } = require("./exotel/webhook");
 const { handleExotelStreamConnection } = require("./exotel/stream");
 
-// Call Initiation & Voice Webhook
-app.post("/call/outbound", initiateOutboundCall);
-app.post("/twilio/outbound", initiateOutboundCall);
+// Legacy inbound webhooks (removed once Plivo is live)
 app.post("/twilio/voice", handleTwilioWebhook);
 
 // Exotel Voice Webhooks
 app.all("/exotel/voice", handleExotelVoiceWebhook);
 app.all("/exotel/status", handleExotelStatusCallback);
 
-// Telephony Status & Provider Check
-app.get("/api/telephony/status", (req, res) => {
-  const provider = (process.env.TELEPHONY_PROVIDER || 'twilio').toLowerCase();
-  res.json({
-    provider,
-    exotelConfigured: Boolean(process.env.EXOTEL_ACCOUNT_SID && process.env.EXOTEL_API_KEY),
-    twilioConfigured: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
-  });
-});
-
 // Dashboard APIs
 app.get("/calls", (req, res) => {
   res.json(getAllCalls());
 });
 
-app.get("/call/:sid/status", (req, res) => {
-  const session = getCallSession(req.params.sid);
-  if (!session) return res.status(404).json({ error: "Call not found" });
-  res.json(session);
-});
-
-app.get("/call/:sid/summary", (req, res) => {
-  const session = getCallSession(req.params.sid);
-  if (!session) return res.status(404).json({ error: "Call not found" });
-  res.json({ summary: session.summary, resolution_status: session.resolution_status });
-});
-
-// Hangup endpoint: terminates an active Twilio call via Twilio REST API
+// Hang up a live call from the dashboard.
 app.post("/call/:sid/hangup", async (req, res) => {
   const { sid } = req.params;
+  const session = getCallSession(sid);
   try {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    if (!accountSid || !authToken) {
-      return res.status(500).json({ error: 'Twilio credentials not configured' });
+    if (session?.provider === 'plivo') {
+      await require('./telephony/plivo/config').plivoClient().calls.hangup(sid);
+    } else {
+      if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+        return res.status(400).json({ error: 'Hang-up is not supported for this call' });
+      }
+      const twilio = require('twilio');
+      await twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN).calls(sid).update({ status: 'completed' });
     }
-    const twilio = require('twilio');
-    const client = twilio(accountSid, authToken);
-    await client.calls(sid).update({ status: 'completed' });
-    console.log(`[Hangup] Call ${sid} terminated by frontend request`);
     res.json({ success: true, callSid: sid });
   } catch (err) {
     console.error(`[Hangup] Error terminating call ${sid}:`, err.message);
-    res.status(500).json({ error: 'Failed to terminate call', details: err.message });
+    res.status(500).json({ error: 'Failed to hang up', details: err.message });
   }
-});
-
-// Mute endpoint: tracks mute state in call session
-// Note: True audio muting for direct Twilio calls requires Conference participant API.
-// For this architecture the AI stream processes audio server-side; mute state is stored
-// in session so stream.js can optionally check it before processing utterances.
-app.post("/call/:sid/mute", (req, res) => {
-  const { sid } = req.params;
-  const { muted } = req.body;
-  const session = getCallSession(sid);
-  if (!session) {
-    return res.status(404).json({ error: 'Call session not found' });
-  }
-  updateCallSession(sid, { muted: Boolean(muted) });
-  console.log(`[Mute] Call ${sid} muted=${muted}`);
-  res.json({ success: true, callSid: sid, muted: Boolean(muted) });
 });
 
 app.get("/analytics", async (req, res) => {
@@ -252,67 +232,6 @@ app.delete("/knowledge/:id", async (req, res) => {
   res.json({ success });
 });
 
-// ==========================================
-// VED (Unified Voice System) API Endpoints
-// ==========================================
-const { 
-  getNumbersPool, 
-  addNumber, 
-  removeNumber, 
-  updateFallbackOrder, 
-  getVedPrompt, 
-  setVedPrompt 
-} = require("./state/ved");
-
-// 1. VED Operations: Numbers Pool & Fallback Order
-app.get("/api/ved/numbers", (req, res) => {
-  res.json({ numbers: getNumbersPool() });
-});
-
-app.post("/api/ved/numbers", (req, res) => {
-  try {
-    const { number, label } = req.body;
-    const added = addNumber({ number, label });
-    res.json({ success: true, number: added, numbers: getNumbersPool() });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-app.delete("/api/ved/numbers/:number", (req, res) => {
-  try {
-    const { number } = req.params;
-    removeNumber(decodeURIComponent(number));
-    res.json({ success: true, numbers: getNumbersPool() });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-app.post("/api/ved/numbers/order", (req, res) => {
-  try {
-    const { orderedNumbers } = req.body;
-    const updated = updateFallbackOrder(orderedNumbers);
-    res.json({ success: true, numbers: updated });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-// 2. VED Operations: System Prompt
-app.get("/api/ved/prompt", (req, res) => {
-  res.json({ prompt: getVedPrompt() });
-});
-
-app.post("/api/ved/prompt", (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: "Valid prompt string required" });
-  }
-  const updated = setVedPrompt(prompt);
-  res.json({ success: true, prompt: updated });
-});
-
 // 3. VED Insights: Aggregated analytics, distinct questions, outcomes, talk time & FAQs
 app.get("/api/ved/insights", async (req, res) => {
   try {
@@ -392,9 +311,7 @@ app.get("/api/ved/insights", async (req, res) => {
       distinctQuestions: faqs.map(f => f.question),
       faqs: faqs.slice(0, 10),
       outcomes,
-      successRate,
-      activeLines: getNumbersPool().filter(n => n.status === 'Active').length,
-      totalLines: getNumbersPool().length
+      successRate
     });
   } catch (err) {
     console.error('[VED Insights] Error generating insights:', err.message);
@@ -429,11 +346,21 @@ wss.on("connection", (ws, req) => {
 
   console.log(`[WebSocket] Connection request path: ${normalizedPath} (raw: ${rawPath}) | Origin: ${req.headers.origin}`);
 
-  if (normalizedPath === "/twilio/stream" || normalizedPath.startsWith("/twilio/stream/")) {
+  if (normalizedPath.startsWith("/plivo/stream/")) {
+    handlePlivoStream(ws, req);
+  } else if (normalizedPath === "/twilio/stream" || normalizedPath.startsWith("/twilio/stream/")) {
     handleStreamConnection(ws);
   } else if (normalizedPath === "/exotel/stream" || normalizedPath.startsWith("/exotel/stream/")) {
     handleExotelStreamConnection(ws, req);
   } else if (normalizedPath === "/live" || normalizedPath === "/live/") {
+    // Browsers cannot set headers on a WebSocket, so the dashboard sends its token in the query.
+    const token = new URL(req.url, 'http://local').searchParams.get('token');
+    try {
+      jwt.verify(token || '', process.env.JWT_SECRET);
+    } catch {
+      ws.close(1008, 'Unauthorized');
+      return;
+    }
     console.log("[WebSocket] Frontend dashboard connected for updates");
     frontendClients.add(ws);
     ws.on("close", () => frontendClients.delete(ws));
@@ -454,9 +381,9 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, '0.0.0.0', () => {
+loadSettings().then(() => server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server fully operational on port ${PORT}`);
   console.log(`- Local access: http://localhost:${PORT}`);
   console.log(`- Network access: http://127.0.0.1:${PORT}`);
-  console.log(`- Public SERVER_URL: ${process.env.SERVER_URL || 'not set'}`);
-});
+  console.log(`- Public URL: ${process.env.PUBLIC_BASE_URL || process.env.SERVER_URL || 'not set'}`);
+}));

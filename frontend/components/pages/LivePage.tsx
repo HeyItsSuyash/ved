@@ -14,6 +14,8 @@ type Session = {
   startTime?: string;
   endTime?: string;
   status?: string;
+  outcome?: string;
+  forwardedTo?: string;
   turns: Turn[];
 };
 
@@ -176,7 +178,13 @@ export default function LivePage({ helpline }: { helpline: string | null }) {
                           {formatTime(s.startTime)} · {s.turns.length} {s.turns.length === 1 ? 'turn' : 'turns'}
                         </div>
                       </div>
-                      {active ? <Badge tone="blue">Live</Badge> : <Badge>Ended</Badge>}
+                      {s.outcome === 'forwarded' ? (
+                        <Badge tone="amber">{active ? 'Forwarding' : 'Forwarded'}</Badge>
+                      ) : active ? (
+                        <Badge tone="blue">Live</Badge>
+                      ) : (
+                        <Badge>Ended</Badge>
+                      )}
                     </button>
                   </li>
                 );

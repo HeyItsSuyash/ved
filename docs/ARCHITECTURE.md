@@ -45,14 +45,14 @@ Twilio has an almost identical pipeline in `backend/twilio/`. `TELEPHONY_PROVIDE
 
 ### Known problems
 
-1. Most backend routes have no authentication: placing calls, reading transcripts, editing the knowledge base, the prompt and the number pool. CORS allows any origin.
-2. `JWT_SECRET` falls back to a hard-coded string.
-3. Number pool, system prompt and live calls are in memory only.
-4. The number pool's "fallback order" is stored but never used to route a call. There is no busy-line forwarding.
-5. Hang-up only works for Twilio calls.
-6. TTS uses an unofficial endpoint with no service guarantee.
-7. Leftovers from an earlier multi-tenant product remain in the backend: `entities`, `leads`, `/admin/*`, `/entities`.
-8. No tests, no CI.
+Fixed since this document was first written: dashboard routes and the live socket require sign-in, `JWT_SECRET` is mandatory, the system prompt and forwarding list live in Postgres, busy-line forwarding exists (on Plivo), hang-up works for Plivo calls, and ElevenLabs is wired in as the voice.
+
+Still open:
+
+1. The Exotel and Twilio pipelines (`backend/exotel/`, `backend/twilio/`) are still present; remove them once Plivo is live.
+2. Leftovers from the multi-tenant product remain: `entities`, `leads`, `/admin/*`, `/entities`.
+3. The backend is hosted in Oregon. Indian calls need the agent's server in India (see `docs/PLIVO_SETUP.md`, step 0).
+4. No automated tests or CI.
 
 ---
 
@@ -169,10 +169,37 @@ SARVAM_API_KEY           if TTS moves to Sarvam
 
 ## 4. Order of work
 
-1. Lock down the API (auth on every route, no client-side login).
-2. Move settings, forwarding list and call records into Postgres.
-3. Rent the Plivo number; add `telephony/plivo` with answer, stream and dial-status.
-4. Busy-line forwarding (capacity check, sequential dial, static fallback XML).
-5. Replace Google Translate TTS.
-6. Remove Exotel, Twilio and the multi-tenant leftovers.
-7. Knowledge chunking and retrieval.
+1. ~~Lock down the API (auth on every route, no client-side login).~~ Done.
+2. ~~Move settings, forwarding list and call records into Postgres.~~ Done (`settings`, `forwarding_numbers`, new `calls` columns).
+3. ~~Add `telephony/plivo` with answer, stream and dial-status.~~ Built and tested with simulated Plivo requests. Account steps: `docs/PLIVO_SETUP.md`.
+4. ~~Busy-line forwarding (capacity check, sequential dial, static fallback XML).~~ Done.
+5. ~~Replace Google Translate TTS.~~ ElevenLabs wired in; Google remains the fallback when no key is set.
+6. Move the backend to a host in India, rent the number, make the first real call.
+7. Remove Exotel, Twilio and the multi-tenant leftovers.
+8. Knowledge chunking and retrieval.
+
+## 5. As built
+
+```
+backend/
+  telephony/plivo/
+    webhooks.js     /plivo/answer, after-stream, forward, dial-status, hangup, stream-status
+    routing.js      capacity check and the forwarding chain
+    stream.js       WebSocket adapter; paces audio out at real time
+    signature.js    X-Plivo-Signature-V3 checks for webhooks and the stream upgrade
+    xml.js          Stream, Dial, Speak documents
+  pipeline/
+    conversation.js turn-taking (VAD, barge-in), STT -> LLM -> TTS, handover
+    tts.js          ElevenLabs streaming mu-law 8 kHz, Google fallback
+    audio.js        mu-law decode, WAV wrapping, level meter
+  services/
+    settings.js     agent and routing settings (cached in memory, stored in Postgres)
+    forwarding.js   staff numbers and their order
+    callRecords.js  saves each finished call once
+  routes/settings.js  /api/settings, /api/forwarding, /api/telephony/status, /api/test-call
+frontend/app/api/plivo-fallback/route.ts   fallback answer URL, hosted on Vercel
+```
+
+Turn-taking: caller audio arrives in 20 ms mu-law frames. 60 ms above the speech level starts an utterance, 700 ms of quiet ends it, and anything under about 240 ms is ignored. While the agent speaks, about 240 ms of caller speech interrupts it (`clearAudio`). A newer utterance discards a reply still being prepared.
+
+Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same.
