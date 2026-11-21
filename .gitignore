@@ -31,3 +31,7 @@ graphify-out/cache/
 graphify-out/.graphify_*
 graphify-out/manifest.json
 graphify-out/graph.html
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
