@@ -1,8 +1,0 @@
-{
-  "name": "caller-ai-widget",
-  "version": "1.0.0",
-  "description": "Premium AI caller widget SDK",
-  "main": "index.js",
-  "author": "HeyItsSuyash",
-  "license": "MIT"
-}
