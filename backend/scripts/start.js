@@ -45,12 +45,29 @@ if (notSet.length) {
   for (const k of notSet) console.warn(`  - ${k}: ${RECOMMENDED[k]}`);
 }
 
+const { applyDatabaseUrls, describe } = require('../services/dbUrl');
+const db = applyDatabaseUrls();
+console.log(`[startup] Database: ${describe(db)}`);
+
 try {
-  // Adds new tables and columns; refuses changes that would lose data.
-  execSync('npx prisma db push --skip-generate', { stdio: 'inherit', cwd: root });
+  // Adds new tables and columns; refuses changes that would lose data. Uses DIRECT_URL.
+  execSync('npx prisma db push --skip-generate', { stdio: 'inherit', cwd: root, env: process.env });
 } catch {
   console.error('[startup] Could not update the database schema. Check that DATABASE_URL is correct and the database is reachable.');
+  console.error('[startup] Supabase: use Connect > Session pooler (port 5432) and replace [YOUR-PASSWORD] with the database password.');
   process.exit(1);
+}
+
+try {
+  // Keep tables out of Supabase's public Data API (RLS on, anon/authenticated revoked).
+  execSync('npx prisma db execute --file prisma/sql/lockdown.sql --schema prisma/schema.prisma', {
+    stdio: 'inherit',
+    cwd: root,
+    env: process.env,
+  });
+  console.log('[startup] Row level security enabled on all public tables');
+} catch {
+  console.error('[startup] WARNING: could not enable row level security; tables may be readable through the Supabase Data API.');
 }
 
 require('../server');

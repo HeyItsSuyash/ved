@@ -210,6 +210,8 @@ Dashboard-controlled agent: persona and instructions (Agent page) are appended t
 
 Forwarding numbers must be verified: `services/verification.js` stores a hash of a 6-digit code (10-minute expiry, 5 attempts, 3 sends per 10 minutes) and Plivo calls the number to read the code out (`/plivo/otp/<token>`). Only active, verified numbers ring.
 
+Database (Supabase): `services/dbUrl.js` accepts either Supabase pooler. Session mode (5432) is used as is; for transaction mode (6543) it adds `pgbouncer=true` and a connection limit for queries and derives a session-mode `DIRECT_URL` for `prisma db push`. `sslmode=require` is added for Supabase hosts. Because Supabase exposes the `public` schema through its Data API, every start runs `prisma/sql/lockdown.sql`: RLS on for all public tables and `anon`/`authenticated` privileges revoked. The backend connects as the table owner, so it is unaffected.
+
 Wake-up: the dashboard shows a loader until `GET /health` answers, because the free Render instance sleeps and takes up to a minute to start.
 
 Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same.

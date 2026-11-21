@@ -3,8 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Queries. With Supabase use the session pooler (port 5432) or the transaction
+  // pooler (6543); services/dbUrl.js adds the parameters each one needs.
+  url       = env("DATABASE_URL")
+  // Schema changes (prisma db push). Derived from DATABASE_URL when not set.
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
