@@ -33,6 +33,7 @@ There are no automated tests yet.
 ## Conventions
 
 - Dashboard UI: neutral palette with one accent (blue-600), Inter, 1px borders, no gradients, glows, glass effects or decorative animation. Text no smaller than 12px. Use the primitives in `components/ui.tsx`.
+- What the agent says is configured in the dashboard (settings table), not in code. Keep `services/llm.js` to knowledge, format and speech-technical rules.
 - Never show invented data. Empty and error states say what is missing and what to do.
 - Every dashboard API call goes through `lib/api.ts` so the JWT is attached.
 - Keep copy short and literal. No marketing language in the product.

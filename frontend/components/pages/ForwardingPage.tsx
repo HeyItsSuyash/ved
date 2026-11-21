@@ -229,7 +229,8 @@ function RoutingForm({
     draft.agentEnabled !== settings.agentEnabled ||
     draft.maxConcurrentCalls !== settings.maxConcurrentCalls ||
     draft.forwardTimeoutSeconds !== settings.forwardTimeoutSeconds ||
-    draft.unavailableMessage !== settings.unavailableMessage;
+    draft.unavailableMessage !== settings.unavailableMessage ||
+    draft.holdMessage !== settings.holdMessage;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,6 +239,7 @@ function RoutingForm({
       maxConcurrentCalls: draft.maxConcurrentCalls,
       forwardTimeoutSeconds: draft.forwardTimeoutSeconds,
       unavailableMessage: draft.unavailableMessage,
+      holdMessage: draft.holdMessage,
     });
   };
 
@@ -292,6 +294,15 @@ function RoutingForm({
             />
           </Field>
         </div>
+
+        <Field label="While connecting" htmlFor="hold" hint="Played before staff phones ring. Callers who skip the greeting also hear the recording notice first.">
+          <Textarea
+            id="hold"
+            rows={2}
+            value={draft.holdMessage}
+            onChange={(e) => setDraft({ ...draft, holdMessage: e.target.value })}
+          />
+        </Field>
 
         <Field label="If no one answers" htmlFor="unavailable" hint="Read to the caller before the call ends.">
           <Textarea

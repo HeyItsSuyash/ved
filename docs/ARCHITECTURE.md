@@ -204,4 +204,6 @@ Turn-taking: caller audio arrives in 20 ms mu-law frames. 60 ms above the speech
 
 Speech: Hindi replies are written in Devanagari (the voice mispronounces Hindi in Roman letters), English terms as callers say them (बी.टेक, हॉस्टल). `pipeline/speechText.js` turns numbers into Hindi words with Indian grouping (1,24,000 becomes एक लाख चौबीस हज़ार) and reads long digit strings one digit at a time. Fixed lines Plivo plays (hold, busy) are ElevenLabs MP3s served from `/plivo/audio/`, so callers only ever hear the agent's voice. Calls are recorded with `<Record recordSession>`; the greeting says so.
 
+Prompt: the agent's persona, language, tone and handover rules come only from the dashboard (Agent > Instructions, `settings.system_prompt`). `services/llm.js` adds the knowledge base, caller history and the output format, then appends the dashboard instructions last, marked as overriding everything above. The greeting, hold message and closing message are also dashboard settings; only the recording notice and the error line are fixed in code.
+
 Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same.

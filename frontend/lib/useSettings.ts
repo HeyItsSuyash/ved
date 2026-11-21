@@ -7,6 +7,7 @@ import { useApi } from './useApi';
 export type Settings = {
   systemPrompt: string;
   greeting: string;
+  holdMessage: string;
   unavailableMessage: string;
   agentEnabled: boolean;
   maxConcurrentCalls: number;

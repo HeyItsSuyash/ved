@@ -4,15 +4,18 @@ const { ttsProvider, mp3For } = require('../../pipeline/tts');
 const { url } = require('./config');
 
 /** Fixed lines Plivo plays outside the agent conversation. */
-const FIXED = {
-  hold: 'कृपया लाइन पर बने रहें, मैं आपको काउंसलर से जोड़ रहा हूँ।',
-  hold_recorded: 'यह कॉल रिकॉर्ड की जा रही है। कृपया लाइन पर बने रहें, मैं आपको काउंसलर से जोड़ रहा हूँ।',
-  error: 'माफ़ कीजिए, अभी हम आपकी कॉल नहीं ले पा रहे हैं। कृपया थोड़ी देर बाद कॉल करें।',
-};
+// Hold and busy messages are edited in the dashboard (Forwarding page). Only the
+// recording notice and the error line, which must not be removed, are fixed here.
+const RECORDING_NOTICE = 'यह कॉल रिकॉर्ड की जा रही है।';
+const ERROR_LINE = 'माफ़ कीजिए, अभी हम आपकी कॉल नहीं ले पा रहे हैं। कृपया थोड़ी देर बाद कॉल करें।';
 
 function textFor(id) {
-  if (id === 'unavailable') return getSettings().unavailableMessage;
-  return FIXED[id] || null;
+  const s = getSettings();
+  if (id === 'hold') return s.holdMessage;
+  if (id === 'hold_recorded') return `${RECORDING_NOTICE} ${s.holdMessage}`;
+  if (id === 'unavailable') return s.unavailableMessage;
+  if (id === 'error') return ERROR_LINE;
+  return null;
 }
 
 const hash = (text) => crypto.createHash('sha1').update(text).digest('hex').slice(0, 10);

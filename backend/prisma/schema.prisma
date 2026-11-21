@@ -99,6 +99,7 @@ model Setting {
   id                    Int      @id @default(1)
   systemPrompt          String   @map("system_prompt")
   greeting              String
+  holdMessage           String   @default("कृपया लाइन पर बने रहें, मैं आपको काउंसलर से जोड़ रहा हूँ।") @map("hold_message")
   unavailableMessage    String   @map("unavailable_message")
   agentEnabled          Boolean  @default(true) @map("agent_enabled")
   maxConcurrentCalls    Int      @default(5) @map("max_concurrent_calls")
