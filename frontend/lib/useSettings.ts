@@ -5,7 +5,11 @@ import { api } from './api';
 import { useApi } from './useApi';
 
 export type Settings = {
+  persona: string;
   systemPrompt: string;
+  voiceId: string;
+  voiceTone: string;
+  voiceSpeed: number;
   greeting: string;
   holdMessage: string;
   unavailableMessage: string;

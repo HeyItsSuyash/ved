@@ -16,12 +16,31 @@ function normaliseNumber(raw) {
   return n;
 }
 
+// Never send OTP hashes to the dashboard.
+const PUBLIC_FIELDS = {
+  id: true,
+  number: true,
+  label: true,
+  position: true,
+  active: true,
+  verified: true,
+  verifiedAt: true,
+  otpExpiresAt: true,
+};
+
 async function listForwardingNumbers() {
-  return prisma.forwardingNumber.findMany({ orderBy: { position: 'asc' } });
+  const rows = await prisma.forwardingNumber.findMany({ orderBy: { position: 'asc' }, select: PUBLIC_FIELDS });
+  const now = new Date();
+  return rows.map(({ otpExpiresAt, ...r }) => ({ ...r, codePending: Boolean(otpExpiresAt && otpExpiresAt > now) }));
 }
 
+/** Numbers that ring when a call is forwarded: switched on and verified. */
 async function activeForwardingNumbers() {
-  return prisma.forwardingNumber.findMany({ where: { active: true }, orderBy: { position: 'asc' } });
+  return prisma.forwardingNumber.findMany({
+    where: { active: true, verified: true },
+    orderBy: { position: 'asc' },
+    select: { id: true, number: true, label: true },
+  });
 }
 
 async function addForwardingNumber({ number, label }) {

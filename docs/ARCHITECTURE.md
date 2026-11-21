@@ -206,4 +206,10 @@ Speech: Hindi replies are written in Devanagari (the voice mispronounces Hindi i
 
 Prompt: the agent's persona, language, tone and handover rules come only from the dashboard (Agent > Instructions, `settings.system_prompt`). `services/llm.js` adds the knowledge base, caller history and the output format, then appends the dashboard instructions last, marked as overriding everything above. The greeting, hold message and closing message are also dashboard settings; only the recording notice and the error line are fixed in code.
 
+Dashboard-controlled agent: persona and instructions (Agent page) are appended to the LLM prompt last; voice type, tone (calm, friendly, expressive, mapped to ElevenLabs stability and style) and speed (0.7 to 1.2) are settings too, with a preview before saving. Changing the voice regenerates the cached greeting and messages.
+
+Forwarding numbers must be verified: `services/verification.js` stores a hash of a 6-digit code (10-minute expiry, 5 attempts, 3 sends per 10 minutes) and Plivo calls the number to read the code out (`/plivo/otp/<token>`). Only active, verified numbers ring.
+
+Wake-up: the dashboard shows a loader until `GET /health` answers, because the free Render instance sleeps and takes up to a minute to start.
+
 Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same.

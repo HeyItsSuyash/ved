@@ -81,7 +81,7 @@ Answer only from these documents. If the answer is not in them, do what the AGEN
   }
 
   const { getSettings } = require('./settings');
-  const agentInstructions = getSettings().systemPrompt;
+  const { persona, systemPrompt: agentInstructions } = getSettings();
 
   const jsonFormatRequirement = `
 SPEECH RULES (your reply is read aloud by a text-to-speech voice on a phone call):
@@ -105,7 +105,8 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 
   // Staff instructions go last and win over everything above, so whatever is set in
   // the dashboard (language, tone, persona, when to hand over) is what the agent does.
-  const dynamicSystemPrompt = `${contextSection}${jsonFormatRequirement}\n### AGENT INSTRUCTIONS (set by staff in the dashboard; these override anything above) ###\n${agentInstructions}\n#######################################`;
+  const personaSection = persona && persona.trim() ? `### PERSONA (who you are; set in the dashboard) ###\n${persona.trim()}\n\n` : '';
+  const dynamicSystemPrompt = `${contextSection}${jsonFormatRequirement}\n${personaSection}### AGENT INSTRUCTIONS (set by staff in the dashboard; these override anything above) ###\n${agentInstructions}\n#######################################`;
 
   // Build the message payload
   const messages = [
@@ -159,7 +160,7 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
         messages,
         model,
         temperature: 0.2,
-        max_completion_tokens: isGptOss ? 300 : 160
+        max_completion_tokens: isGptOss ? 400 : 220
       };
 
       // Only enforce strict json_object on models that support it reliably without schema failure

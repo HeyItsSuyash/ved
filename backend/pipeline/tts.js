@@ -5,9 +5,27 @@ const { toSpeech } = require('./speechText');
 const ELEVENLABS_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
 const MAX_FRAME = 8000; // bytes of mu-law per playAudio message (1 s); well under Plivo's 64 KB limit once base64-encoded
 
-// Ayush: male, Hindi and English support agent. Override with ELEVENLABS_VOICE_ID.
+// Voice, tone and speed are dashboard settings (Agent page). Ayush is the default.
 const DEFAULT_VOICE_ID = 'PqovzlPXjFmB5NRVvFVe';
-const voiceId = () => process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID;
+
+function currentVoice() {
+  const { getSettings, TONES } = require('../services/settings');
+  const s = getSettings();
+  return { id: s.voiceId || DEFAULT_VOICE_ID, tone: TONES[s.voiceTone] ? s.voiceTone : 'friendly', speed: s.voiceSpeed || 1.0, TONES };
+}
+
+/** ElevenLabs voice_settings for a tone and speed. */
+function voiceSettings(tone, speed) {
+  const { TONES } = require('../services/settings');
+  const t = TONES[tone] || TONES.friendly;
+  return { stability: t.stability, similarity_boost: 0.75, style: t.style, use_speaker_boost: true, speed };
+}
+
+const voiceId = () => currentVoice().id;
+const voiceKey = () => {
+  const v = currentVoice();
+  return `${v.id}|${v.tone}|${v.speed}`;
+};
 
 function ttsProvider() {
   return process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'google';
@@ -43,7 +61,7 @@ async function streamElevenLabs(text, onAudio, signal, language) {
       text,
       model_id: model,
       language_code: elevenLanguage(language) || (/[\u0900-\u097F]/.test(text) ? 'hi' : undefined),
-      voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
+      voice_settings: voiceSettings(currentVoice().tone, currentVoice().speed),
     }),
   });
 
@@ -71,7 +89,7 @@ async function speakGoogle(text, language, onAudio) {
 
 // Fixed lines (greeting, resume line) are synthesized once and replayed.
 const cache = new Map();
-const cacheKey = (text) => `${ttsProvider()}|${voiceId()}|${process.env.ELEVENLABS_MODEL_ID || ''}|${text}`;
+const cacheKey = (text) => `${ttsProvider()}|${voiceKey()}|${process.env.ELEVENLABS_MODEL_ID || ''}|${text}`;
 
 async function synthesizeToBuffer(text, language) {
   const chunks = [];
@@ -133,23 +151,29 @@ async function speak(rawText, { language = 'en', onAudio, signal } = {}) {
 // message a caller hears uses the agent's voice rather than Plivo's built-in voices.
 const mp3Cache = new Map();
 
-async function mp3For(rawText) {
+/**
+ * MP3 of a line. Uses the dashboard voice unless `voice` ({ id, tone, speed }) is given,
+ * which the dashboard's preview uses to try a voice before saving it.
+ */
+async function mp3For(rawText, voice = null, { cache = true } = {}) {
   if (ttsProvider() !== 'elevenlabs') return null;
+  const v = voice || currentVoice();
   const text = toSpeech(rawText, 'hi');
-  const key = `${voiceId()}|${text}`;
-  if (mp3Cache.has(key)) return mp3Cache.get(key);
-  const res = await fetch(`${ELEVENLABS_URL}/${encodeURIComponent(voiceId())}?output_format=mp3_22050_32`, {
+  const key = `${v.id}|${v.tone}|${v.speed}|${text}`;
+  if (cache && mp3Cache.has(key)) return mp3Cache.get(key);
+  const res = await fetch(`${ELEVENLABS_URL}/${encodeURIComponent(v.id)}?output_format=mp3_22050_32`, {
     method: 'POST',
     headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({
       text,
       model_id: process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5',
       language_code: /[\u0900-\u097F]/.test(text) ? 'hi' : undefined,
+      voice_settings: voiceSettings(v.tone, v.speed),
     }),
   });
   if (!res.ok) throw new Error(`ElevenLabs MP3 failed (${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
-  mp3Cache.set(key, buf);
+  if (cache) mp3Cache.set(key, buf);
   return buf;
 }
 

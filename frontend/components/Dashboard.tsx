@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api, type User } from '@/lib/api';
 import { cx } from '@/components/ui';
+import { formatPhone } from '@/lib/format';
 import LivePage from '@/components/pages/LivePage';
 import CallLogPage from '@/components/pages/CallLogPage';
 import KnowledgePage from '@/components/pages/KnowledgePage';
@@ -73,9 +74,9 @@ export default function Dashboard({ user, onSignOut }: { user: User; onSignOut: 
           height={28}
           className="shrink-0"
         />
-        <div className="leading-tight">
-          <div className="text-sm font-semibold text-zinc-900">VED</div>
-          <div className="text-xs text-zinc-500">MMMUT Helpline</div>
+        <div className="leading-tight min-w-0">
+          <div className="text-sm font-semibold text-zinc-900 truncate">Counselling Support</div>
+          <div className="text-xs text-zinc-500">Admin panel</div>
         </div>
       </div>
 
@@ -104,7 +105,7 @@ export default function Dashboard({ user, onSignOut }: { user: User; onSignOut: 
         {helpline && (
           <div className="px-1 pb-3">
             <div className="text-xs text-zinc-500">Helpline</div>
-            <div className="text-sm font-medium text-zinc-900 tabular-nums">{helpline}</div>
+            <div className="text-sm font-medium text-zinc-900 tabular-nums">{formatPhone(helpline)}</div>
           </div>
         )}
         <div className="flex items-center justify-between gap-2 px-1">
@@ -131,7 +132,7 @@ export default function Dashboard({ user, onSignOut }: { user: User; onSignOut: 
 
       {/* Mobile top bar and drawer */}
       <div className="md:hidden sticky top-0 z-20 flex items-center justify-between h-14 px-4 bg-white border-b border-zinc-200">
-        <span className="text-sm font-semibold">VED · MMMUT Helpline</span>
+        <span className="text-sm font-semibold">Counselling Support · Admin</span>
         <button
           onClick={() => setMenuOpen(true)}
           className="inline-flex size-9 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100"
@@ -158,7 +159,7 @@ export default function Dashboard({ user, onSignOut }: { user: User; onSignOut: 
 
       <main className="md:pl-60">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">
-          {page === 'live' && <LivePage helpline={helpline} />}
+          {page === 'live' && <LivePage helpline={helpline} onManageForwarding={() => go('forwarding')} />}
           {page === 'calls' && <CallLogPage />}
           {page === 'knowledge' && <KnowledgePage />}
           {page === 'insights' && <InsightsPage />}

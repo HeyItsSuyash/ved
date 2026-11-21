@@ -6,6 +6,9 @@ const { requirePlivoSignature } = require('./signature');
 const { agentUnavailableReason, ensureSession, streamResponse, forwardResponse } = require('./routing');
 const xml = require('./xml');
 const { audioFor, lineFor } = require('./lines');
+const { textForCall } = require('../../services/verification');
+const { ttsProvider, mp3For } = require('../../pipeline/tts');
+const { url } = require('./config');
 const prisma = require('../../services/db');
 
 const router = express.Router();
@@ -22,7 +25,27 @@ router.get('/audio/:file', async (req, res) => {
   }
 });
 
+/** Audio for a verification call; the token in the path is random and expires in 10 minutes. */
+router.get('/otp-audio/:token.mp3', async (req, res) => {
+  const text = textForCall(req.params.token);
+  if (!text) return res.status(404).send('Not found');
+  try {
+    res.type('audio/mpeg').send(await mp3For(text, null, { cache: false }));
+  } catch (err) {
+    console.error('[Plivo] OTP audio failed:', err.message);
+    res.status(502).send('Audio unavailable');
+  }
+});
+
 router.use(requirePlivoSignature);
+
+/** Answer URL of a verification call: read the code out twice, then hang up. */
+router.all('/otp/:token', (req, res) => {
+  const text = textForCall(req.params.token);
+  if (!text) return sendXml(res, xml.hangupXml());
+  const audioUrl = ttsProvider() === 'elevenlabs' ? url(`/plivo/otp-audio/${req.params.token}.mp3`) : null;
+  sendXml(res, xml.sayAndHangupXml({ text, audioUrl }));
+});
 
 const param = (req, key) => (req.body && req.body[key]) || req.query[key];
 

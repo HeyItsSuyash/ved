@@ -33,3 +33,19 @@ export function secondsBetween(start?: string, end?: string): number | null {
   const diff = (new Date(end).getTime() - new Date(start).getTime()) / 1000;
   return Number.isFinite(diff) && diff >= 0 ? diff : null;
 }
+
+// Two-digit STD codes; other Indian landlines use three digits.
+const TWO_DIGIT_STD = ['11', '20', '22', '33', '40', '44', '79', '80'];
+
+/** "+912269855433" -> "+91 22 6985 5433", "+919839011111" -> "+91 98390 11111". */
+export function formatPhone(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) {
+    const n = digits.slice(2);
+    if (/^[6-9]/.test(n)) return `+91 ${n.slice(0, 5)} ${n.slice(5)}`;
+    if (TWO_DIGIT_STD.includes(n.slice(0, 2))) return `+91 ${n.slice(0, 2)} ${n.slice(2, 6)} ${n.slice(6)}`;
+    return `+91 ${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+  }
+  return raw;
+}

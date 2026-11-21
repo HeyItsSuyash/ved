@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ variable: '--font-inter', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'VED · MMMUT Helpline',
-  description: 'Staff dashboard for the MMMUT admissions helpline voice agent.',
+  title: 'Admin panel · Admission & Counselling Support',
+  description: 'Admin panel for the Madan Mohan Malaviya University of Technology admission and counselling helpline.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

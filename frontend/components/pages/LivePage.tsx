@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { PhoneIncoming } from 'lucide-react';
+import { PhoneForwarded, PhoneIncoming } from 'lucide-react';
 import { api, liveSocketUrl } from '@/lib/api';
-import { formatClock, formatTime } from '@/lib/format';
+import { formatClock, formatPhone, formatTime } from '@/lib/format';
+import { useApi } from '@/lib/useApi';
 import { Badge, Card, EmptyState, Notice, PageHeader, StatusDot, cx } from '@/components/ui';
 
 type Turn = { speaker: 'user' | 'ai'; text: string; timestamp?: string; language?: string };
@@ -33,7 +34,50 @@ function useNow(enabled: boolean) {
   return now;
 }
 
-export default function LivePage({ helpline }: { helpline: string | null }) {
+type ForwardingNumber = { id: string; number: string; label: string; active: boolean; verified: boolean };
+
+/** The numbers callers dial and the numbers their calls can be forwarded to. */
+function NumbersStrip({ helpline, onManage }: { helpline: string | null; onManage: () => void }) {
+  const { data } = useApi<{ numbers: ForwardingNumber[] }>('/api/forwarding');
+  const ringing = (data?.numbers ?? []).filter((n) => n.active && n.verified);
+  return (
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] mb-4">
+      <div className="bg-white border border-zinc-200 rounded-lg px-4 py-3.5">
+        <div className="text-[13px] text-zinc-500">Helpline number</div>
+        <div className="mt-1 text-xl font-semibold text-zinc-900 tabular-nums">
+          {helpline ? formatPhone(helpline) : <span className="text-base font-normal text-zinc-500">Not set</span>}
+        </div>
+        <div className="mt-0.5 text-xs text-zinc-500">Callers dial this; the agent answers.</div>
+      </div>
+      <div className="bg-white border border-zinc-200 rounded-lg px-4 py-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[13px] text-zinc-500">Forwarded to, in order</div>
+          <button onClick={onManage} className="text-[13px] font-medium text-blue-700 hover:underline cursor-pointer">
+            Manage
+          </button>
+        </div>
+        {ringing.length === 0 ? (
+          <div className="mt-1.5 flex items-center gap-2 text-sm text-amber-800">
+            <PhoneForwarded className="size-4" />
+            No verified staff numbers. Callers who need a person cannot be forwarded.
+          </div>
+        ) : (
+          <ol className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+            {ringing.map((n, i) => (
+              <li key={n.id} className="text-sm text-zinc-900">
+                <span className="text-zinc-400 tabular-nums mr-1.5">{i + 1}</span>
+                <span className="tabular-nums font-medium">{formatPhone(n.number)}</span>
+                {n.label && <span className="text-zinc-500"> · {n.label}</span>}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function LivePage({ helpline, onManageForwarding }: { helpline: string | null; onManageForwarding: () => void }) {
   const [sessions, setSessions] = useState<Record<string, Session>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [socketState, setSocketState] = useState<'connecting' | 'open' | 'closed'>('connecting');
@@ -125,11 +169,7 @@ export default function LivePage({ helpline }: { helpline: string | null }) {
     <>
       <PageHeader
         title="Live calls"
-        description={
-          helpline
-            ? `Calls to ${helpline} are answered by the agent. Conversations appear here as they happen.`
-            : 'Conversations appear here as they happen.'
-        }
+        description="Conversations appear here as they happen."
         actions={
           <span className="inline-flex items-center gap-2 text-[13px] text-zinc-600">
             <StatusDot tone={socketState === 'open' ? 'green' : socketState === 'connecting' ? 'amber' : 'red'} />
@@ -137,6 +177,8 @@ export default function LivePage({ helpline }: { helpline: string | null }) {
           </span>
         }
       />
+
+      <NumbersStrip helpline={helpline} onManage={onManageForwarding} />
 
       {loadError && (
         <div className="mb-4">
@@ -208,7 +250,7 @@ export default function LivePage({ helpline }: { helpline: string | null }) {
             {!current ? (
               <EmptyState
                 title="Waiting for a call"
-                description={helpline ? `Dial ${helpline} to test the agent.` : undefined}
+                description={helpline ? `Dial ${formatPhone(helpline)} to test the agent.` : undefined}
               />
             ) : current.turns.length === 0 ? (
               <EmptyState title="Listening" description="The transcript starts when the caller speaks." />

@@ -3,10 +3,19 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Dashboard from '@/components/Dashboard';
+import BackendGate from '@/components/BackendGate';
 import { ApiError, api, clearSession, getToken, type User } from '@/lib/api';
 import { Loading, Notice } from '@/components/ui';
 
 export default function Home() {
+  return (
+    <BackendGate>
+      <AuthedApp />
+    </BackendGate>
+  );
+}
+
+function AuthedApp() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);

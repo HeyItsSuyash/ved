@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ArrowDown, ArrowUp, PhoneForwarded, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, PhoneCall, PhoneForwarded, Trash2 } from 'lucide-react';
+import { formatPhone } from '@/lib/format';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { useSettings, type Settings } from '@/lib/useSettings';
@@ -20,7 +21,15 @@ import {
   Textarea,
 } from '@/components/ui';
 
-type ForwardingNumber = { id: string; number: string; label: string; position: number; active: boolean };
+type ForwardingNumber = {
+  id: string;
+  number: string;
+  label: string;
+  position: number;
+  active: boolean;
+  verified: boolean;
+  codePending: boolean;
+};
 type TelephonyStatus = { provider: string; helpline: string | null; plivoConfigured: boolean; activeAgentCalls: number };
 
 export default function ForwardingPage() {
@@ -28,7 +37,7 @@ export default function ForwardingPage() {
     <>
       <PageHeader
         title="Forwarding"
-        description="When the agent is busy, switched off, or hands a caller over, these numbers ring one at a time, top to bottom. A busy or unanswered number moves on to the next."
+        description="When a caller wants to speak to a person, the agent cannot clear a doubt, or the agent is busy or off, these numbers ring one at a time, top to bottom. A busy or unanswered number moves on to the next."
       />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] items-start">
         <NumbersCard />
@@ -63,12 +72,16 @@ function NumbersCard() {
     run(() => api('/api/forwarding/order', { method: 'POST', body: JSON.stringify({ ids }) }));
   };
 
-  const activeCount = numbers.filter((n) => n.active).length;
+  const ringingCount = numbers.filter((n) => n.active && n.verified).length;
 
   return (
     <Card
       title="Staff numbers"
-      description={numbers.length ? `${activeCount} of ${numbers.length} active` : undefined}
+      description={
+        numbers.length
+          ? `${ringingCount} of ${numbers.length} will ring. Only numbers verified with a code receive calls.`
+          : 'Only numbers verified with a code receive calls.'
+      }
       bodyClassName="p-0"
     >
       {(error || actionError) && (
@@ -87,44 +100,130 @@ function NumbersCard() {
       ) : (
         <ol className="divide-y divide-zinc-100">
           {numbers.map((n, i) => (
-            <li key={n.id} className="flex items-center gap-4 px-5 py-3">
-              <span className="w-5 text-xs text-zinc-400 tabular-nums">{i + 1}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium tabular-nums ${n.active ? 'text-zinc-900' : 'text-zinc-400'}`}>
-                    {n.number}
-                  </span>
-                  {!n.active && <Badge>Off</Badge>}
+            <li key={n.id} className="px-5 py-3">
+              <div className="flex items-center gap-4">
+                <span className="w-5 text-xs text-zinc-400 tabular-nums">{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-sm font-medium tabular-nums ${n.active && n.verified ? 'text-zinc-900' : 'text-zinc-500'}`}>
+                      {formatPhone(n.number)}
+                    </span>
+                    {n.verified ? <Badge tone="green">Verified</Badge> : <Badge tone="amber">Not verified</Badge>}
+                    {!n.active && <Badge>Off</Badge>}
+                  </div>
+                  {n.label && <div className="text-xs text-zinc-500 mt-0.5 truncate">{n.label}</div>}
                 </div>
-                {n.label && <div className="text-xs text-zinc-500 mt-0.5 truncate">{n.label}</div>}
-              </div>
-              <Switch
-                checked={n.active}
-                label={n.active ? `Stop ringing ${n.number}` : `Ring ${n.number}`}
-                disabled={busy}
-                onChange={(active) =>
-                  run(() => api(`/api/forwarding/${n.id}`, { method: 'PATCH', body: JSON.stringify({ active }) }))
-                }
-              />
-              <div className="flex items-center gap-0.5">
-                <IconButton icon={ArrowUp} label="Move up" disabled={i === 0 || busy} onClick={() => move(i, -1)} />
-                <IconButton icon={ArrowDown} label="Move down" disabled={i === numbers.length - 1 || busy} onClick={() => move(i, 1)} />
-                <IconButton
-                  icon={Trash2}
-                  label={`Remove ${n.number}`}
+                <Switch
+                  checked={n.active}
+                  label={n.active ? `Stop ringing ${n.number}` : `Ring ${n.number}`}
                   disabled={busy}
-                  className="hover:text-red-600 hover:bg-red-50"
-                  onClick={() => {
-                    if (window.confirm(`Remove ${n.number}?`)) run(() => api(`/api/forwarding/${n.id}`, { method: 'DELETE' }));
-                  }}
+                  onChange={(active) =>
+                    run(() => api(`/api/forwarding/${n.id}`, { method: 'PATCH', body: JSON.stringify({ active }) }))
+                  }
                 />
+                <div className="flex items-center gap-0.5">
+                  <IconButton icon={ArrowUp} label="Move up" disabled={i === 0 || busy} onClick={() => move(i, -1)} />
+                  <IconButton icon={ArrowDown} label="Move down" disabled={i === numbers.length - 1 || busy} onClick={() => move(i, 1)} />
+                  <IconButton
+                    icon={Trash2}
+                    label={`Remove ${n.number}`}
+                    disabled={busy}
+                    className="hover:text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      if (window.confirm(`Remove ${n.number}?`)) run(() => api(`/api/forwarding/${n.id}`, { method: 'DELETE' }));
+                    }}
+                  />
+                </div>
               </div>
+              {!n.verified && (
+                <VerifyRow
+                  number={n}
+                  disabled={busy}
+                  onSend={() => run(() => api(`/api/forwarding/${n.id}/send-code`, { method: 'POST' }))}
+                  onVerify={(code) =>
+                    api<{ numbers: ForwardingNumber[] }>(`/api/forwarding/${n.id}/verify`, {
+                      method: 'POST',
+                      body: JSON.stringify({ code }),
+                    }).then((res) => setData({ numbers: res.numbers }))
+                  }
+                />
+              )}
             </li>
           ))}
         </ol>
       )}
       <AddNumberForm disabled={busy} onAdded={(list) => setData({ numbers: list })} />
     </Card>
+  );
+}
+
+/** Verify a staff number: Plivo calls it and reads out a 6-digit code. */
+function VerifyRow({
+  number,
+  disabled,
+  onSend,
+  onVerify,
+}: {
+  number: ForwardingNumber;
+  disabled: boolean;
+  onSend: () => void;
+  onVerify: (code: string) => Promise<void>;
+}) {
+  const [code, setCode] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChecking(true);
+    setError(null);
+    try {
+      await onVerify(code);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not verify');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  if (!number.codePending) {
+    return (
+      <div className="mt-2 ml-9 flex flex-wrap items-center gap-3">
+        <span className="text-xs text-zinc-500">This number will not ring until it is verified.</span>
+        <Button size="sm" icon={PhoneCall} onClick={onSend} disabled={disabled}>
+          Call with code
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-2 ml-9 space-y-2">
+      <p className="text-xs text-zinc-600">
+        We are calling {formatPhone(number.number)} and reading out a 6-digit code. Enter it here. It expires in 10 minutes.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-36">
+        <Input
+          aria-label={`Code for ${number.number}`}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          placeholder="6-digit code"
+          className="tabular-nums tracking-widest"
+        />
+        </div>
+        <Button type="submit" size="sm" variant="primary" loading={checking} disabled={code.length !== 6}>
+          Verify
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onSend} disabled={disabled}>
+          Call again
+        </Button>
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </form>
   );
 }
 
@@ -251,7 +350,7 @@ function RoutingForm({
         <div>
           <div className="text-[13px] font-medium text-zinc-700">Helpline number</div>
           <div className="mt-1 text-sm tabular-nums text-zinc-900">
-            {helpline || <span className="text-zinc-500">Not set. Add PLIVO_NUMBER to the backend environment.</span>}
+            {helpline ? formatPhone(helpline) : <span className="text-zinc-500">Not set. Add PLIVO_NUMBER to the backend environment.</span>}
           </div>
           {status && (
             <div className="mt-0.5 text-xs text-zinc-500">

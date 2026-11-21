@@ -93,7 +93,7 @@ Then call the number from an Indian phone, or use **Agent > Test call** in the d
 
 Test the forwarding paths before going live:
 
-1. Add staff numbers under **Forwarding**.
+1. Add staff numbers under **Forwarding** and verify each: **Call with code** makes Plivo call the phone and read out a 6-digit code; type it in. Unverified numbers never ring. (Plivo's own Verify API is not enabled on this account, so the backend places this call itself.)
 2. Set **Calls at once** to 0 and call: the first staff number rings; reject it and the second rings.
 3. Set it back, call, and say "I want to talk to a person" (or press 0): the agent hands over.
 4. Let every staff number go unanswered: a handed-over caller returns to the agent; a caller forwarded for capacity hears the closing message.

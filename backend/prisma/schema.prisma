@@ -101,6 +101,10 @@ model Setting {
   greeting              String
   holdMessage           String   @default("कृपया लाइन पर बने रहें, मैं आपको काउंसलर से जोड़ रहा हूँ।") @map("hold_message")
   unavailableMessage    String   @map("unavailable_message")
+  persona               String   @default("")
+  voiceId               String   @default("PqovzlPXjFmB5NRVvFVe") @map("voice_id")
+  voiceTone             String   @default("friendly") @map("voice_tone")
+  voiceSpeed            Float    @default(1.0) @map("voice_speed")
   agentEnabled          Boolean  @default(true) @map("agent_enabled")
   maxConcurrentCalls    Int      @default(5) @map("max_concurrent_calls")
   forwardTimeoutSeconds Int      @default(20) @map("forward_timeout_seconds")
@@ -116,6 +120,13 @@ model ForwardingNumber {
   label     String   @default("")
   position  Int
   active    Boolean  @default(true)
+  /// Only verified numbers receive forwarded calls; verified by a code read out on a call.
+  verified      Boolean   @default(false)
+  verifiedAt    DateTime? @map("verified_at")
+  otpHash       String?   @map("otp_hash")
+  otpExpiresAt  DateTime? @map("otp_expires_at")
+  otpAttempts   Int       @default(0) @map("otp_attempts")
+  otpSentAt     DateTime[] @map("otp_sent_at")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("forwarding_numbers")
