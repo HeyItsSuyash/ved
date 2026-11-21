@@ -381,7 +381,12 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-loadSettings().then(() => server.listen(PORT, '0.0.0.0', () => {
+loadSettings().then((settings) => {
+  // Pre-synthesize the greeting so callers hear it at once.
+  const { warmUp } = require('./pipeline/tts');
+  const { RESUME_LINE } = require('./pipeline/conversation');
+  warmUp([settings.greeting, RESUME_LINE]);
+}).then(() => server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server fully operational on port ${PORT}`);
   console.log(`- Local access: http://localhost:${PORT}`);
   console.log(`- Network access: http://127.0.0.1:${PORT}`);

@@ -81,6 +81,9 @@ async function updateSettings(input) {
     create: { id: 1, ...DEFAULTS, ...data },
   });
   cache = pick(row);
+  if (data.greeting) {
+    require('../pipeline/tts').warmUp([cache.greeting]).catch(() => {});
+  }
   return cache;
 }
 

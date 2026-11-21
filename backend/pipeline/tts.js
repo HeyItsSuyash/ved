@@ -56,6 +56,46 @@ async function speakGoogle(text, language, onAudio) {
   return mulaw.length;
 }
 
+// Fixed lines (greeting, resume line) are synthesized once and replayed.
+const cache = new Map();
+const cacheKey = (text) => `${ttsProvider()}|${process.env.ELEVENLABS_VOICE_ID || ''}|${process.env.ELEVENLABS_MODEL_ID || ''}|${text}`;
+
+async function synthesizeToBuffer(text, language) {
+  const chunks = [];
+  await speak(text, { language, onAudio: (b) => chunks.push(Buffer.from(b)) });
+  return Buffer.concat(chunks);
+}
+
+/** Play a fixed line from cache, synthesizing it on first use. */
+async function speakCached(text, { language = 'en', onAudio, signal } = {}) {
+  const key = cacheKey(text);
+  let audio = cache.get(key);
+  if (!audio) {
+    audio = await synthesizeToBuffer(text, language);
+    if (audio.length) cache.set(key, audio);
+  }
+  if (signal?.aborted) return 0;
+  emitInFrames(audio, onAudio);
+  return audio.length;
+}
+
+/** Pre-synthesize fixed lines at startup; this also warms the TTS connection. */
+async function warmUp(lines) {
+  const t0 = Date.now();
+  for (const line of lines.filter(Boolean)) {
+    try {
+      const key = cacheKey(line);
+      if (!cache.has(key)) {
+        const audio = await synthesizeToBuffer(line, 'hinglish');
+        if (audio.length) cache.set(key, audio);
+      }
+    } catch (err) {
+      console.error('[TTS] Warm-up failed:', err.message);
+    }
+  }
+  console.log(`[TTS] ${ttsProvider()} ready, ${cache.size} cached lines (${Date.now() - t0} ms)`);
+}
+
 /**
  * Synthesize `text` as mu-law 8 kHz and pass it to `onAudio` in frames.
  * Uses ElevenLabs when configured, otherwise the free Google voice.
@@ -75,4 +115,4 @@ async function speak(text, { language = 'en', onAudio, signal } = {}) {
   return speakGoogle(text, language, onAudio);
 }
 
-module.exports = { speak, ttsProvider };
+module.exports = { speak, speakCached, warmUp, ttsProvider };

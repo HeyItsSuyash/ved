@@ -4,7 +4,7 @@ const { getLLMResponse } = require('../services/llm');
 const { getKnowledge, getCallMemory } = require('../services/mongodb');
 const { getSettings } = require('../services/settings');
 const { mulawToWav, mulawRms } = require('./audio');
-const { speak } = require('./tts');
+const { speak, speakCached } = require('./tts');
 
 // Turn-taking tuned for 20 ms mu-law frames from the phone network.
 const SPEECH_RMS = Number(process.env.VAD_SPEECH_RMS) || 600; // frame level that counts as speech
@@ -70,7 +70,7 @@ class Conversation {
 
     const opening = resume ? RESUME_LINE : getSettings().greeting;
     addTurn(this.callSid, { timestamp: new Date().toISOString(), speaker: 'ai', text: opening, language: 'hinglish' });
-    await Promise.all([this.say(opening, 'hinglish'), loading]);
+    await Promise.all([this.say(opening, 'hinglish', { cached: true }), loading]);
   }
 
   /** Feed one frame of caller audio (raw mu-law bytes). */
@@ -181,7 +181,7 @@ class Conversation {
   }
 
   /** Speak text to the caller. Resolves with the time the first audio frame was sent. */
-  async say(text, language) {
+  async say(text, language, { cached = false } = {}) {
     this.ttsAbort?.abort();
     const abort = new AbortController();
     this.ttsAbort = abort;
@@ -190,7 +190,7 @@ class Conversation {
     let bytes = 0;
 
     try {
-      bytes = await speak(text, {
+      bytes = await (cached ? speakCached : speak)(text, {
         language,
         signal: abort.signal,
         onAudio: (frame) => {
@@ -232,4 +232,4 @@ class Conversation {
   }
 }
 
-module.exports = { Conversation };
+module.exports = { Conversation, RESUME_LINE };
