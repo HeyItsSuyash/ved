@@ -39,7 +39,8 @@ Set these on the backend host (see `backend/.env.example`):
 | `TELEPHONY_PROVIDER` | `plivo` |
 | `ELEVENLABS_API_KEY` | The agent's voice (Ayush, male, by default; `ELEVENLABS_VOICE_ID` overrides it). Hold and busy messages are played in the same voice. Without a key, the free Google voice and Plivo's built-in voices are used. |
 | `GROQ_API_KEY` | Speech to text and the LLM. |
-| `DATABASE_URL` | Required. Postgres connection string; on Render, create a PostgreSQL database in the same region and use its Internal Database URL. |
+| `DATABASE_URL` | Required. Supabase: project > Connect > **Session pooler** string (port 5432; works over IPv4, which Render needs). |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First dashboard login, created on startup if it does not exist (for hosts without a shell). Password at least 10 characters. |
 | `JWT_SECRET` | Required; the backend refuses to start without it. |
 | `DASHBOARD_ORIGIN` | The dashboard URL, to restrict CORS. |
 

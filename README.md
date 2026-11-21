@@ -15,7 +15,7 @@ cd backend
 cp .env.example .env        # fill in values
 npm install
 npx prisma db push
-npm run create-admin -- admin@example.com 'a-strong-password'
+npm run create-admin -- admin@example.com 'a-strong-password'   # or set ADMIN_EMAIL and ADMIN_PASSWORD
 npm run dev
 ```
 

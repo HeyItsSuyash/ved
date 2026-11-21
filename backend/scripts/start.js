@@ -10,7 +10,7 @@ const envFile = path.join(root, fs.existsSync(path.join(root, '.env.local')) ? '
 if (fs.existsSync(envFile)) require('dotenv').config({ path: envFile, quiet: true });
 
 const REQUIRED = {
-  DATABASE_URL: 'Postgres connection string (Render: your database > Connections > Internal Database URL)',
+  DATABASE_URL: 'Postgres connection string (Supabase: Connect > Session pooler, port 5432)',
   JWT_SECRET: 'long random string used to sign dashboard logins',
 };
 
@@ -25,7 +25,7 @@ const RECOMMENDED = {
 
 // Print which variables this process can see (names only, never values), so a deploy
 // log shows at a glance whether the host passed its settings through.
-const OTHER = ['TELEPHONY_PROVIDER', 'DASHBOARD_ORIGIN', 'PORT'];
+const OTHER = ['TELEPHONY_PROVIDER', 'DASHBOARD_ORIGIN', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'PORT'];
 console.log('[startup] Environment check (set / missing):');
 for (const k of [...Object.keys(REQUIRED), ...Object.keys(RECOMMENDED), ...OTHER]) {
   console.log(`  ${process.env[k] ? 'set    ' : 'MISSING'} ${k}`);

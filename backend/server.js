@@ -381,7 +381,7 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-loadSettings().then((settings) => {
+require('./services/bootstrap').ensureAdmin().then(loadSettings).then((settings) => {
   // Pre-synthesize the greeting so callers hear it at once.
   const { warmUp } = require('./pipeline/tts');
   const { RESUME_LINE } = require('./pipeline/conversation');
