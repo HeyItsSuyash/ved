@@ -47,6 +47,7 @@ async function finalizeCall(callSid, extra = {}) {
         duration_s: durationS,
         outcome,
         forwarded_to: s.forwardedTo || null,
+        recording_url: s.recordingUrl || null,
         callData: {
           transcript: s.turns,
           startTime: s.startTime,

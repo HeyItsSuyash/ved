@@ -386,6 +386,7 @@ loadSettings().then((settings) => {
   const { warmUp } = require('./pipeline/tts');
   const { RESUME_LINE } = require('./pipeline/conversation');
   warmUp([settings.greeting, RESUME_LINE]);
+  require('./telephony/plivo/lines').warmLines();
 }).then(() => server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server fully operational on port ${PORT}`);
   console.log(`- Local access: http://localhost:${PORT}`);

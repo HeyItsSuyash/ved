@@ -23,7 +23,7 @@ LANGUAGE BEHAVIOR:
 - The caller may speak in Hindi, English, or a mix of both (Hinglish).
 - Always use a natural Hinglish mix (a blend of English and Hindi) so it sounds like a real Indian person speaking. For example: "Main Hindi and English dono mein baat kar sakti hoon."
 - Use natural, spoken Indian English or Hindi. Use contractions, soften your tone, be conversational.
-- In Hindi, use Devanagari script internally but output in Roman transliteration for TTS compatibility.
+- In Hindi, write in Devanagari script.
 - IMPORTANT: If the user transcript is empty, undefined, or says very little nonsense (like just background noise), respond naturally with: "Hello? I can't hear you." or "Mujhe aapki aawaz nahi aa rahi hai, kya aap wahan hain?"
 - Add punctuation like commas (,), ellipses (...), and question marks (?) to create natural pauses and intonation in the speech.
 
@@ -123,20 +123,21 @@ STRICT ANSWERING BOUNDARIES:
   const activePromptTemplate = instructions || getSettings().systemPrompt || SYSTEM_PROMPT.replace('Company Name', 'the organization');
 
   const jsonFormatRequirement = `
-MANDATORY MULTILINGUAL & RESPONSE FORMAT:
-- Identify the language the caller spoke in their latest message.
-- You MUST generate your "spoken" response in that SAME language (even if the verified DATA ROOM knowledge is in English or Hindi).
-- If the caller speaks Hindi/Hinglish, output the response in Romanized script (transliteration) for natural Indian text-to-speech.
-- Set "language" to the corresponding language code (e.g., "en", "hi", "hinglish", "es", "fr", "de", "ta", "te", "bn", "mr", "gu").
+SPEECH RULES (your reply is read aloud by a text-to-speech voice on a phone call):
+- Reply in the caller's language. For Hindi or Hinglish, write in Devanagari script, never in Roman letters. Write English words the way an Indian caller says them, in Devanagari: बी.टेक, एम.टेक, हॉस्टल, फीस, एडमिशन, काउंसलिंग, कटऑफ।
+- Say the university's name in full as "मदन मोहन मालवीय यूनिवर्सिटी" (or "Madan Mohan Malaviya University" in English). Never say "MMMUT".
+- Write amounts and numbers as digits (1,24,000 or 30 जून 2026); they are converted to spoken words for you. Do not add "Rs" or "₹".
+- One short sentence when you can, two at most, under 20 words. No lists, no markdown, no emojis.
+- Speak as a man: "मैं बता सकता हूँ", "मैं आपकी सेवा कर सकता हूँ".
 
 You MUST respond with a valid JSON object matching this exact structure:
 {
-  "spoken": "The exact text to speak aloud to the caller in their language (1-2 sentences maximum, natural conversation)",
+  "spoken": "What to say to the caller",
   "intent": "primary intent label",
   "entities": ["list", "of", "key", "entities"],
   "sentiment": "positive | neutral | negative | frustrated | satisfied",
   "action_item": null,
-  "language": "language code of the spoken response (e.g. en, hi, hinglish, es, fr, de, ta, te, bn, mr, gu)",
+  "language": "hi or en (hi for Hindi and Hinglish)",
   "transfer_to_human": false
 }
 Set "transfer_to_human" to true only when the caller asks to speak to a person, or when you could not answer their last two questions.
@@ -169,12 +170,12 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
   if (!groq) {
     console.warn("[LLM] GROQ_API_KEY is not configured. Returning fallback response.");
     return {
-      spoken: "Main samajh nahi paayi, kripya thodi der baad prayas karein.",
+      spoken: "माफ़ कीजिए, अभी मैं जवाब नहीं दे पा रहा हूँ। कृपया थोड़ी देर बाद कॉल करें।",
       intent: "unknown",
       entities: [],
       sentiment: "neutral",
       action_item: null,
-      language: "hinglish"
+      language: "hi"
     };
   }
 
@@ -197,7 +198,7 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
         messages,
         model,
         temperature: 0.2,
-        max_completion_tokens: isGptOss ? 300 : 120
+        max_completion_tokens: isGptOss ? 300 : 160
       };
 
       // Only enforce strict json_object on models that support it reliably without schema failure
@@ -236,7 +237,7 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 
   // Fallback if all API attempts failed
   return {
-    spoken: "Main samajh nahi paayi, kya aap dobara bol sakte hain?",
+    spoken: "माफ़ कीजिए, मैं समझ नहीं पाया। क्या आप दोबारा बोल सकते हैं?",
     intent: "unknown",
     entities: [],
     sentiment: "neutral",

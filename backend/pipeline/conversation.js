@@ -15,7 +15,7 @@ const MAX_UTTERANCE_MS = 15000;
 const BARGE_IN_FRAMES = 12; // ~240 ms of caller speech interrupts the agent
 const PRE_ROLL_FRAMES = 10;
 
-const RESUME_LINE = 'Maaf kijiye, abhi koi counsellor free nahi hai. Main aapki madad karti rehti hoon, boliye.';
+const RESUME_LINE = 'माफ़ कीजिए, अभी कोई काउंसलर फ्री नहीं है। मैं आपकी मदद करता रहूँगा, बताइए।';
 
 /**
  * One phone conversation between a caller and the agent. Provider-agnostic: the
@@ -69,8 +69,8 @@ class Conversation {
       .catch((err) => this.log.error(`[Conv ${this.callSid}] Could not load knowledge:`, err.message));
 
     const opening = resume ? RESUME_LINE : getSettings().greeting;
-    addTurn(this.callSid, { timestamp: new Date().toISOString(), speaker: 'ai', text: opening, language: 'hinglish' });
-    await Promise.all([this.say(opening, 'hinglish', { cached: true }), loading]);
+    addTurn(this.callSid, { timestamp: new Date().toISOString(), speaker: 'ai', text: opening, language: 'hi' });
+    await Promise.all([this.say(opening, 'hi', { cached: true }), loading]);
   }
 
   /** Feed one frame of caller audio (raw mu-law bytes). */

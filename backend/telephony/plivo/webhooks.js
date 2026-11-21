@@ -5,8 +5,23 @@ const { activeForwardingNumbers } = require('../../services/forwarding');
 const { requirePlivoSignature } = require('./signature');
 const { agentUnavailableReason, ensureSession, streamResponse, forwardResponse } = require('./routing');
 const xml = require('./xml');
+const { audioFor, lineFor } = require('./lines');
+const prisma = require('../../services/db');
 
 const router = express.Router();
+
+/** MP3s for <Play>: hold and busy messages in the agent's voice. Plivo fetches these unsigned. */
+router.get('/audio/:file', async (req, res) => {
+  try {
+    const mp3 = await audioFor(req.params.file);
+    if (!mp3) return res.status(404).send('Not found');
+    res.set('Cache-Control', 'public, max-age=86400').type('audio/mpeg').send(mp3);
+  } catch (err) {
+    console.error('[Plivo] Audio failed:', err.message);
+    res.status(502).send('Audio unavailable');
+  }
+});
+
 router.use(requirePlivoSignature);
 
 const param = (req, key) => (req.body && req.body[key]) || req.query[key];
@@ -36,7 +51,7 @@ router.all('/answer', async (req, res) => {
     return sendXml(res, await forwardResponse(callUuid, { reason: busy, calledNumber: param(req, 'To') }));
   } catch (err) {
     console.error('[Plivo] Answer failed:', err);
-    return sendXml(res, xml.speakAndHangupXml('Sorry, we cannot take your call right now. Please try again shortly.'));
+    return sendXml(res, xml.sayAndHangupXml(lineFor('error')));
   }
 });
 
@@ -80,6 +95,21 @@ router.all('/hangup', async (req, res) => {
   console.log(`[Plivo] Hangup ${callUuid}: ${param(req, 'HangupCauseName') || param(req, 'HangupCause') || ''}`);
   updateCallSession(callUuid, { aiActive: false, hangupCause: param(req, 'HangupCauseName') || null });
   await finalizeCall(callUuid);
+});
+
+/** Recording finished: keep its link with the call. Often arrives after the hang-up. */
+router.all('/recording', async (req, res) => {
+  res.status(200).send('OK');
+  const callUuid = param(req, 'CallUUID');
+  const recordingUrl = param(req, 'RecordUrl') || param(req, 'RecordingUrl');
+  if (!callUuid || !recordingUrl) return;
+  console.log(`[Plivo] Recording ready for ${callUuid}`);
+  if (getCallSession(callUuid)) updateCallSession(callUuid, { recordingUrl });
+  try {
+    await prisma.call.updateMany({ where: { provider_call_id: callUuid }, data: { recording_url: recordingUrl } });
+  } catch (err) {
+    console.error('[Plivo] Could not save recording link:', err.message);
+  }
 });
 
 /** <Stream> status callback: the only push signal for dropped or degraded streams. */

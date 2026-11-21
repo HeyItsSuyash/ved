@@ -53,6 +53,7 @@ model Call {
   /// answered_by_ai | forwarded | missed
   outcome           String?
   forwarded_to      String?
+  recording_url     String?
 
   entity            Entity?  @relation(fields: [entity_id], references: [id])
 

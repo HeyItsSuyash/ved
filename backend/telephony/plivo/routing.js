@@ -2,10 +2,10 @@ const { getAllCalls, getCallSession, createCallSession, updateCallSession } = re
 const { getSettings } = require('../../services/settings');
 const { activeForwardingNumbers } = require('../../services/forwarding');
 const { url, wsUrl, helplineNumber } = require('./config');
+const { lineFor } = require('./lines');
 const xml = require('./xml');
 
 const HANDOVER_REASONS = new Set(['agent_requested', 'caller_pressed_0']);
-const HOLD_MESSAGE = 'Please hold while we connect you to a counsellor.';
 
 function activeAgentCalls() {
   return getAllCalls().filter((c) => c.provider === 'plivo' && c.aiActive && !c.endTime).length;
@@ -28,12 +28,21 @@ function ensureSession(callUuid, { caller, direction }) {
   return getCallSession(callUuid);
 }
 
+/** Start recording once per call: the first XML document the call runs. */
+function recordingCallback(callUuid) {
+  const session = getCallSession(callUuid);
+  if (!session || session.recordingStarted) return undefined;
+  updateCallSession(callUuid, { recordingStarted: true });
+  return url('/plivo/recording');
+}
+
 function streamResponse(callUuid, { resume = false } = {}) {
   updateCallSession(callUuid, { aiActive: true });
   return xml.streamXml({
     wsUrl: wsUrl(`/plivo/stream/${encodeURIComponent(callUuid)}${resume ? '?resume=1' : ''}`),
     statusCallbackUrl: url('/plivo/stream-status'),
     afterStreamUrl: url(`/plivo/after-stream/${encodeURIComponent(callUuid)}`),
+    recordingCallbackUrl: recordingCallback(callUuid),
   });
 }
 
@@ -47,6 +56,7 @@ async function forwardResponse(callUuid, { attempt = 0, reason, calledNumber }) 
   const callerId = helplineNumber() || calledNumber;
 
   if (attempt < numbers.length && callerId) {
+    const recordingCallbackUrl = recordingCallback(callUuid);
     updateCallSession(callUuid, { outcome: 'forwarded', forwardReason: reason, aiActive: false });
     return xml.dialXml({
       number: numbers[attempt].number,
@@ -55,7 +65,10 @@ async function forwardResponse(callUuid, { attempt = 0, reason, calledNumber }) 
       actionUrl: url(
         `/plivo/dial-status/${encodeURIComponent(callUuid)}?attempt=${attempt}&reason=${encodeURIComponent(reason)}`
       ),
-      announce: attempt === 0 ? HOLD_MESSAGE : undefined,
+      // A caller forwarded straight from the answer URL never heard the greeting, so
+      // the recording notice goes in the hold message.
+      announce: attempt === 0 ? lineFor(recordingCallbackUrl ? 'hold_recorded' : 'hold') : undefined,
+      recordingCallbackUrl,
     });
   }
 
@@ -68,7 +81,7 @@ async function forwardResponse(callUuid, { attempt = 0, reason, calledNumber }) 
   const session = getCallSession(callUuid);
   const talkedToAgent = session?.turns?.some((t) => t.speaker === 'user');
   updateCallSession(callUuid, { outcome: talkedToAgent ? 'answered_by_ai' : 'missed', aiActive: false });
-  return xml.speakAndHangupXml(settings.unavailableMessage);
+  return xml.sayAndHangupXml(lineFor('unavailable'));
 }
 
 module.exports = { activeAgentCalls, agentUnavailableReason, ensureSession, streamResponse, forwardResponse };

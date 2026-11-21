@@ -1,11 +1,16 @@
 const { getGoogleTTS } = require('../services/speech');
 const { toMulaw8k } = require('./audio');
+const { toSpeech } = require('./speechText');
 
 const ELEVENLABS_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
 const MAX_FRAME = 8000; // bytes of mu-law per playAudio message (1 s); well under Plivo's 64 KB limit once base64-encoded
 
+// Ayush: male, Hindi and English support agent. Override with ELEVENLABS_VOICE_ID.
+const DEFAULT_VOICE_ID = 'PqovzlPXjFmB5NRVvFVe';
+const voiceId = () => process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE_ID;
+
 function ttsProvider() {
-  return process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID ? 'elevenlabs' : 'google';
+  return process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'google';
 }
 
 function emitInFrames(buffer, onAudio) {
@@ -16,10 +21,17 @@ function emitInFrames(buffer, onAudio) {
  * ElevenLabs streaming TTS straight to mu-law 8 kHz, so audio reaches the caller
  * while the rest of the sentence is still being generated.
  */
-async function streamElevenLabs(text, onAudio, signal) {
-  const voiceId = process.env.ELEVENLABS_VOICE_ID;
+// ElevenLabs language codes for Flash v2.5; Hinglish is spoken as Hindi.
+function elevenLanguage(language) {
+  const l = String(language || '').toLowerCase();
+  if (l.startsWith('hi')) return 'hi';
+  if (l.startsWith('en')) return 'en';
+  return /[\u0900-\u097F]/.test(l) ? 'hi' : undefined;
+}
+
+async function streamElevenLabs(text, onAudio, signal, language) {
   const model = process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5';
-  const res = await fetch(`${ELEVENLABS_URL}/${encodeURIComponent(voiceId)}/stream?output_format=ulaw_8000`, {
+  const res = await fetch(`${ELEVENLABS_URL}/${encodeURIComponent(voiceId())}/stream?output_format=ulaw_8000`, {
     method: 'POST',
     signal,
     headers: {
@@ -30,6 +42,7 @@ async function streamElevenLabs(text, onAudio, signal) {
     body: JSON.stringify({
       text,
       model_id: model,
+      language_code: elevenLanguage(language) || (/[\u0900-\u097F]/.test(text) ? 'hi' : undefined),
       voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
     }),
   });
@@ -58,7 +71,7 @@ async function speakGoogle(text, language, onAudio) {
 
 // Fixed lines (greeting, resume line) are synthesized once and replayed.
 const cache = new Map();
-const cacheKey = (text) => `${ttsProvider()}|${process.env.ELEVENLABS_VOICE_ID || ''}|${process.env.ELEVENLABS_MODEL_ID || ''}|${text}`;
+const cacheKey = (text) => `${ttsProvider()}|${voiceId()}|${process.env.ELEVENLABS_MODEL_ID || ''}|${text}`;
 
 async function synthesizeToBuffer(text, language) {
   const chunks = [];
@@ -86,7 +99,7 @@ async function warmUp(lines) {
     try {
       const key = cacheKey(line);
       if (!cache.has(key)) {
-        const audio = await synthesizeToBuffer(line, 'hinglish');
+        const audio = await synthesizeToBuffer(line, 'hi');
         if (audio.length) cache.set(key, audio);
       }
     } catch (err) {
@@ -101,11 +114,12 @@ async function warmUp(lines) {
  * Uses ElevenLabs when configured, otherwise the free Google voice.
  * Resolves with the number of bytes produced.
  */
-async function speak(text, { language = 'en', onAudio, signal } = {}) {
-  if (!text || !text.trim()) return 0;
+async function speak(rawText, { language = 'en', onAudio, signal } = {}) {
+  const text = toSpeech(rawText, language);
+  if (!text) return 0;
   if (ttsProvider() === 'elevenlabs') {
     try {
-      return await streamElevenLabs(text, onAudio, signal);
+      return await streamElevenLabs(text, onAudio, signal, language);
     } catch (err) {
       if (signal?.aborted) return 0;
       console.error('[TTS] ElevenLabs failed, falling back to Google:', err.message);
@@ -115,4 +129,28 @@ async function speak(text, { language = 'en', onAudio, signal } = {}) {
   return speakGoogle(text, language, onAudio);
 }
 
-module.exports = { speak, speakCached, warmUp, ttsProvider };
+// MP3 versions of fixed lines for Plivo <Play> (hold and busy messages), so every
+// message a caller hears uses the agent's voice rather than Plivo's built-in voices.
+const mp3Cache = new Map();
+
+async function mp3For(rawText) {
+  if (ttsProvider() !== 'elevenlabs') return null;
+  const text = toSpeech(rawText, 'hi');
+  const key = `${voiceId()}|${text}`;
+  if (mp3Cache.has(key)) return mp3Cache.get(key);
+  const res = await fetch(`${ELEVENLABS_URL}/${encodeURIComponent(voiceId())}?output_format=mp3_22050_32`, {
+    method: 'POST',
+    headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+    body: JSON.stringify({
+      text,
+      model_id: process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5',
+      language_code: /[\u0900-\u097F]/.test(text) ? 'hi' : undefined,
+    }),
+  });
+  if (!res.ok) throw new Error(`ElevenLabs MP3 failed (${res.status})`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  mp3Cache.set(key, buf);
+  return buf;
+}
+
+module.exports = { speak, speakCached, warmUp, ttsProvider, mp3For, DEFAULT_VOICE_ID };

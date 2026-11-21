@@ -37,7 +37,7 @@ Set these on the backend host (see `backend/.env.example`):
 | `PLIVO_AUTH_ID`, `PLIVO_AUTH_TOKEN` | Console > Account. The token also verifies webhook signatures. |
 | `PLIVO_NUMBER` | The rented number in E.164, e.g. `+918045671234`. Used as caller ID when forwarding. |
 | `TELEPHONY_PROVIDER` | `plivo` |
-| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | The agent's voice. Without them the free Google voice is used. |
+| `ELEVENLABS_API_KEY` | The agent's voice (Ayush, male, by default; `ELEVENLABS_VOICE_ID` overrides it). Hold and busy messages are played in the same voice. Without a key, the free Google voice and Plivo's built-in voices are used. |
 | `GROQ_API_KEY` | Speech to text and the LLM. |
 | `JWT_SECRET` | Required; the backend refuses to start without it. |
 | `DASHBOARD_ORIGIN` | The dashboard URL, to restrict CORS. |
@@ -76,6 +76,7 @@ plivo api POST /Application/<app_id>/ \
 |---|---|
 | `/plivo/answer` | Agent free: returns `<Stream>` to the agent. Agent busy or off: starts forwarding. |
 | `/plivo/hangup` | Saves the call (summary, outcome, duration). |
+| `/plivo/recording` | Every call is recorded (the greeting says so); Plivo posts the recording link here and it appears in the call log. |
 | fallback (Vercel) | Backend unreachable: rings all fallback numbers at once. |
 
 The backend also serves `/plivo/stream/<CallUUID>` (WebSocket), `/plivo/dial-status/<CallUUID>`, `/plivo/forward/<CallUUID>`, `/plivo/after-stream/<CallUUID>` and `/plivo/stream-status`. Plivo reaches these from the XML; they need no console setup.

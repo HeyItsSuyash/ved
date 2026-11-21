@@ -202,4 +202,6 @@ frontend/app/api/plivo-fallback/route.ts   fallback answer URL, hosted on Vercel
 
 Turn-taking: caller audio arrives in 20 ms mu-law frames. 60 ms above the speech level starts an utterance, 700 ms of quiet ends it, and anything under about 240 ms is ignored. While the agent speaks, about 240 ms of caller speech interrupts it (`clearAudio`). A newer utterance discards a reply still being prepared.
 
+Speech: Hindi replies are written in Devanagari (the voice mispronounces Hindi in Roman letters), English terms as callers say them (बी.टेक, हॉस्टल). `pipeline/speechText.js` turns numbers into Hindi words with Indian grouping (1,24,000 becomes एक लाख चौबीस हज़ार) and reads long digit strings one digit at a time. Fixed lines Plivo plays (hold, busy) are ElevenLabs MP3s served from `/plivo/audio/`, so callers only ever hear the agent's voice. Calls are recorded with `<Record recordSession>`; the greeting says so.
+
 Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same.

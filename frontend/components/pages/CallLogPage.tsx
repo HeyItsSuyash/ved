@@ -18,6 +18,7 @@ type CallRecord = {
   outcome?: string | null;
   forwarded_to?: string | null;
   duration_s?: number | null;
+  recording_url?: string | null;
   callData?: {
     transcript?: Turn[];
     resolution?: string;
@@ -146,6 +147,12 @@ export default function CallLogPage() {
                                 <p className="text-sm text-zinc-800 leading-relaxed">
                                   {c.summary || 'No summary was generated for this call.'}
                                 </p>
+                                <h3 className="text-xs font-medium text-zinc-500 mt-4 mb-1.5">Recording</h3>
+                                {c.recording_url ? (
+                                  <audio controls preload="none" src={c.recording_url} className="w-full max-w-sm h-9" />
+                                ) : (
+                                  <p className="text-sm text-zinc-500">No recording for this call.</p>
+                                )}
                               </div>
                               <div>
                                 <h3 className="text-xs font-medium text-zinc-500 mb-1.5">Transcript</h3>
