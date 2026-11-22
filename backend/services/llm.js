@@ -100,8 +100,8 @@ You MUST respond with a valid JSON object matching this exact structure:
   "transfer_to_human": false,
   "end_call": false
 }
-Set "transfer_to_human" to true when the AGENT INSTRUCTIONS say to hand the caller to a person.
-Set "end_call" to true when the AGENT INSTRUCTIONS say to end the call; the closing greeting is added after your line.
+Set "transfer_to_human" to true when the AGENT INSTRUCTIONS say to hand the caller to a person, and leave "spoken" empty (""): the hold message set by staff is played word for word instead.
+Set "end_call" to true when the AGENT INSTRUCTIONS say to end the call. The closing greeting set by staff is played word for word after your line, so "spoken" holds only your answer to the caller's last question, never thanks or goodbye; leave it empty ("") if there is nothing left to answer.
 Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 `;
 
@@ -188,7 +188,8 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
           cleanContent = jsonMatch[0];
         }
         const parsed = JSON.parse(cleanContent);
-        if (parsed && parsed.spoken) {
+        // "spoken" may be empty only when the call is handed over or ended: a staff-written message is played instead.
+        if (parsed && (parsed.spoken || parsed.transfer_to_human === true || parsed.end_call === true)) {
           return parsed;
         }
       } catch (e) {

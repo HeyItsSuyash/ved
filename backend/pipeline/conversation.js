@@ -166,24 +166,41 @@ class Conversation {
     if (turnId !== this.turnId || this.ended || this.closing) return;
     const t2 = Date.now();
 
-    addTurn(this.callSid, {
-      timestamp: new Date().toISOString(),
-      speaker: 'ai',
-      text: reply.spoken,
-      intent: reply.intent,
-      sentiment: reply.sentiment,
-      language: reply.language,
-    });
-
     if (reply.transfer_to_human === true) {
-      // Say the handover line, then transfer, or close politely if no counsellor can be reached.
-      this.afterSpeech = (await this.staffAvailable()) ? 'transfer' : 'follow_up';
-    } else if (reply.end_call === true) {
+      // The LLM's own wording is not used here: the caller hears the dashboard's hold
+      // message (played by Plivo while the counsellor's phone rings) exactly as written,
+      // or, with nobody free, the follow-up message and then the closing greeting.
+      this.log.info?.(`[Conv ${this.callSid}] Handover requested (${reply.intent || 'no intent'})`);
+      await this.requestHuman('agent_requested');
+      return;
+    }
+
+    const spoken = String(reply.spoken || '').trim();
+    if (spoken) {
+      addTurn(this.callSid, {
+        timestamp: new Date().toISOString(),
+        speaker: 'ai',
+        text: spoken,
+        intent: reply.intent,
+        sentiment: reply.sentiment,
+        language: reply.language,
+      });
+    }
+
+    if (reply.end_call === true) {
       // Query resolved, or the caller kept to unrelated talk: closing greeting, then hang up.
       this.afterSpeech = 'close';
       updateCallSession(this.callSid, { endedBy: 'agent' });
     }
-    const firstAudioAt = await this.say(reply.spoken, reply.language);
+    if (!spoken) {
+      // Nothing left to answer: straight to the closing greeting.
+      if (this.afterSpeech === 'close') {
+        this.afterSpeech = null;
+        this.close();
+      }
+      return;
+    }
+    const firstAudioAt = await this.say(spoken, reply.language);
     this.log.info?.(
       `[Conv ${this.callSid}] latency stt=${t1 - t0}ms llm=${t2 - t1}ms tts_first_audio=${firstAudioAt ? firstAudioAt - t2 : '-'}ms`
     );

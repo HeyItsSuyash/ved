@@ -1,17 +1,17 @@
 # Graph Report - ved  (2026-11-22)
 
 ## Corpus Check
-- 72 files · ~33,381 words
+- 72 files · ~33,712 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 11 file(s) not represented in the graph (top: (none) 5, .example 2, .prisma 1)
 
 ## Summary
-- 564 nodes · 1396 edges · 24 communities (20 shown, 4 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 94 edges (avg confidence: 0.85)
+- 564 nodes · 1397 edges · 24 communities (20 shown, 4 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 95 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `30fcc639`
+- Built from commit: `00116cb1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -56,14 +56,14 @@
 ## Surprising Connections (you probably didn't know these)
 - `handlePlivoStream()` --calls--> `Conversation`  [EXTRACTED]
   backend/telephony/plivo/stream.js → backend/pipeline/conversation.js
-- `LoginForm()` --calls--> `getToken()`  [EXTRACTED]
-  frontend/app/login/page.tsx → frontend/lib/api.ts
-- `LoginForm()` --calls--> `saveSession()`  [EXTRACTED]
-  frontend/app/login/page.tsx → frontend/lib/api.ts
-- `AuthedApp()` --calls--> `Dashboard()`  [EXTRACTED]
-  frontend/app/page.tsx → frontend/components/Dashboard.tsx
-- `AuthedApp()` --calls--> `Loading()`  [EXTRACTED]
-  frontend/app/page.tsx → frontend/components/ui.tsx
+- `lineFor()` --calls--> `ttsProvider()`  [EXTRACTED]
+  backend/telephony/plivo/lines.js → backend/pipeline/tts.js
+- `speakGoogle()` --calls--> `getGoogleTTS()`  [EXTRACTED]
+  backend/pipeline/tts.js → backend/services/speech.js
+- `textFor()` --calls--> `getSettings()`  [EXTRACTED]
+  backend/telephony/plivo/lines.js → backend/services/settings.js
+- `agentUnavailableReason()` --calls--> `getSettings()`  [EXTRACTED]
+  backend/telephony/plivo/routing.js → backend/services/settings.js
 
 ## Import Cycles
 - None detected.
@@ -165,8 +165,8 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `server.js` be split into smaller, more focused modules?**
   _Cohesion score 0.07459677419354839 - nodes in this community are weakly interconnected._
 - **Why does `handlePlivoStream()` connect `webhooks.js` to `server.js`, `exotel/stream.js`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
 - **Should `exotel/stream.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.07686453576864535 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07724505327245053 - nodes in this community are weakly interconnected._
 - **Should `backend/package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.0773109243697479 - nodes in this community are weakly interconnected._

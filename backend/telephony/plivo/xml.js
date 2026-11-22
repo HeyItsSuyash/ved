@@ -44,7 +44,7 @@ function streamXml({ wsUrl, statusCallbackUrl, afterStreamUrl, recordingCallback
 function dialXml({ number, callerId, timeout, actionUrl, announce, recordingCallbackUrl }) {
   return wrap(
     (recordingCallbackUrl ? record(recordingCallbackUrl) : '') +
-      (announce ? line(announce) : '') +
+      (announce ? [].concat(announce).map(line).join('') : '') +
       `  <Dial timeout="${Number(timeout)}" callerId="${esc(callerId)}" action="${esc(actionUrl)}" method="POST">\n` +
       `    <Number>${esc(number)}</Number>\n` +
       `  </Dial>`

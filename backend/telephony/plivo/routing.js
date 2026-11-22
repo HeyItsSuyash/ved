@@ -65,9 +65,14 @@ async function forwardResponse(callUuid, { attempt = 0, reason, calledNumber }) 
       actionUrl: url(
         `/plivo/dial-status/${encodeURIComponent(callUuid)}?attempt=${attempt}&reason=${encodeURIComponent(reason)}`
       ),
-      // A caller forwarded straight from the answer URL never heard the greeting, so
-      // the recording notice goes in the hold message.
-      announce: attempt === 0 ? lineFor(recordingCallbackUrl ? 'hold_recorded' : 'hold') : undefined,
+      // A caller forwarded straight from the answer URL never heard the greeting, so the
+      // recording notice plays first, as its own line; the hold message stays exactly as written.
+      announce:
+        attempt === 0
+          ? recordingCallbackUrl
+            ? [lineFor('recording_notice'), lineFor('hold')]
+            : [lineFor('hold')]
+          : undefined,
       recordingCallbackUrl,
     });
   }

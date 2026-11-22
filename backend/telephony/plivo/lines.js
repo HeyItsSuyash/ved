@@ -12,7 +12,7 @@ const ERROR_LINE = 'माफ़ कीजिए, अभी हम आपकी 
 function textFor(id) {
   const s = getSettings();
   if (id === 'hold') return s.holdMessage;
-  if (id === 'hold_recorded') return `${RECORDING_NOTICE} ${s.holdMessage}`;
+  if (id === 'recording_notice') return RECORDING_NOTICE;
   if (id === 'unavailable') return s.unavailableMessage;
   if (id === 'closing') return s.closingMessage;
   if (id === 'follow_up') return s.followUpMessage;
@@ -45,7 +45,7 @@ async function audioFor(file) {
 /** Generate the MP3s ahead of the first call. */
 async function warmLines() {
   if (ttsProvider() !== 'elevenlabs') return;
-  for (const id of ['hold', 'hold_recorded', 'error', 'unavailable', 'closing', 'follow_up', 'rate_limited']) {
+  for (const id of ['hold', 'recording_notice', 'error', 'unavailable', 'closing', 'follow_up', 'rate_limited']) {
     try {
       await mp3For(textFor(id));
     } catch (err) {

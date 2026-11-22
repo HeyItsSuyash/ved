@@ -91,9 +91,10 @@ async function speakGoogle(text, language, onAudio) {
 const cache = new Map();
 const cacheKey = (text) => `${ttsProvider()}|${voiceKey()}|${process.env.ELEVENLABS_MODEL_ID || ''}|${text}`;
 
+// Fixed lines are dashboard messages: spoken exactly as written (verbatim).
 async function synthesizeToBuffer(text, language) {
   const chunks = [];
-  await speak(text, { language, onAudio: (b) => chunks.push(Buffer.from(b)) });
+  await speak(text, { language, verbatim: true, onAudio: (b) => chunks.push(Buffer.from(b)) });
   return Buffer.concat(chunks);
 }
 
@@ -132,8 +133,8 @@ async function warmUp(lines) {
  * Uses ElevenLabs when configured, otherwise the free Google voice.
  * Resolves with the number of bytes produced.
  */
-async function speak(rawText, { language = 'en', onAudio, signal } = {}) {
-  const text = toSpeech(rawText, language);
+async function speak(rawText, { language = 'en', onAudio, signal, verbatim = false } = {}) {
+  const text = toSpeech(rawText, language, { verbatim });
   if (!text) return 0;
   if (ttsProvider() === 'elevenlabs') {
     try {
@@ -158,7 +159,7 @@ const mp3Cache = new Map();
 async function mp3For(rawText, voice = null, { cache = true } = {}) {
   if (ttsProvider() !== 'elevenlabs') return null;
   const v = voice || currentVoice();
-  const text = toSpeech(rawText, 'hi');
+  const text = toSpeech(rawText, 'hi', { verbatim: true });
   const key = `${v.id}|${v.tone}|${v.speed}|${text}`;
   if (cache && mp3Cache.has(key)) return mp3Cache.get(key);
   const res = await fetch(`${ELEVENLABS_URL}/${encodeURIComponent(v.id)}?output_format=mp3_22050_32`, {

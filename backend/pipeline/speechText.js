@@ -58,16 +58,21 @@ const EXPANSIONS = [
  * Text as it should be spoken. For Hindi (any Devanagari in the text, or a Hindi
  * language code) numbers are converted to Hindi words; English replies are left
  * for the voice model to read.
+ *
+ * `verbatim` is for messages written in the dashboard (greeting, hold, closing...):
+ * they are spoken exactly as written. Only digits are read out as Hindi words,
+ * which changes how a number sounds, not what is said.
  */
-function toSpeech(text, language = '') {
-  let out = String(text || '')
-    .replace(/[*_#`]/g, '') // stray markdown
-    .replace(/\s+/g, ' ')
-    .trim();
+function toSpeech(text, language = '', { verbatim = false } = {}) {
+  let out = String(text || '');
+  if (!verbatim) out = out.replace(/[*_#`]/g, ''); // stray markdown from the LLM
+  out = out.replace(/\s+/g, ' ').trim();
   const hindi = DEVANAGARI.test(out) || /^(hi|hinglish)/i.test(language);
   if (!hindi) return out;
 
-  for (const [re, rep] of EXPANSIONS) out = out.replace(re, rep);
+  if (!verbatim) for (const [re, rep] of EXPANSIONS) out = out.replace(re, rep);
+  // ₹1,24,000 is read "एक लाख चौबीस हज़ार रुपये": the symbol is said after the amount.
+  if (verbatim) out = out.replace(/(?:₹|\bRs\.?)\s?(\d[\d,]*(?:\.\d+)?)/gi, '$1 रुपये');
 
   // 1,24,000 or 1,240.50 style amounts: read the value.
   out = out.replace(/\d{1,3}(?:,\d{2,3})+(?:\.\d+)?/g, (m) => {
