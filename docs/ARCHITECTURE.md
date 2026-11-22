@@ -149,7 +149,7 @@ The Exotel and Twilio folders are removed once Plivo is live.
 DATABASE_URL
 JWT_SECRET
 PUBLIC_BASE_URL          https URL of the backend, used in Plivo XML
-DASHBOARD_ORIGIN         for CORS
+DASHBOARD_ORIGIN         dashboard addresses allowed by CORS, comma-separated (/health is open to all and reports originAllowed)
 PLIVO_AUTH_ID
 PLIVO_AUTH_TOKEN
 PLIVO_NUMBER             E.164, e.g. +91…

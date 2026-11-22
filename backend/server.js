@@ -26,7 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // DASHBOARD_ORIGIN restricts browser access to the dashboard's origin(s), comma-separated.
-const allowedOrigins = (process.env.DASHBOARD_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+const allowedOrigins = (process.env.DASHBOARD_ORIGIN || '').split(',').map(o => o.trim().replace(/\/+$/, '')).filter(Boolean);
 const corsOptions = {
   origin: allowedOrigins.length ? allowedOrigins : '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -64,8 +64,11 @@ app.use('/entities', entityRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/admin', adminRoutes);
 
-app.get(["/", "/health"], (req, res) => {
-  res.status(200).send("OK");
+// Open to every origin so the dashboard can tell "server down" from "this address is not allowed".
+app.get(["/", "/health"], cors(), (req, res) => {
+  const origin = req.get('origin') || null;
+  const originAllowed = !origin || !allowedOrigins.length || allowedOrigins.includes(origin);
+  res.status(200).json({ status: 'ok', originAllowed });
 });
 
 const { handleExotelVoiceWebhook, handleExotelStatusCallback } = require("./exotel/webhook");

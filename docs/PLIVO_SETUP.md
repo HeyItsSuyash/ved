@@ -42,7 +42,7 @@ Set these on the backend host (see `backend/.env.example`):
 | `DATABASE_URL` | Required. Supabase: project > Connect > **Session pooler** string (port 5432; works over IPv4, which Render needs). |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First dashboard login, created on startup if it does not exist (for hosts without a shell). Password at least 10 characters. |
 | `JWT_SECRET` | Required; the backend refuses to start without it. |
-| `DASHBOARD_ORIGIN` | The dashboard URL, to restrict CORS. |
+| `DASHBOARD_ORIGIN` | Every address the dashboard is opened from, comma-separated (e.g. `https://counselling.mmmut.tech,https://ved-swart.vercel.app`). Other addresses get a "does not accept this address" message instead of the dashboard. |
 
 On the dashboard host (Vercel), for the fallback route:
 

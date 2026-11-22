@@ -32,14 +32,23 @@ function markAwake() {
 
 let awake = false; // once awake, later page loads in this tab skip the wait
 
-async function ping(): Promise<boolean> {
+type Health = 'ok' | 'blocked' | 'down';
+
+// 'blocked': the server is up but its DASHBOARD_ORIGIN does not include this dashboard's address,
+// so the browser would refuse every API response.
+async function ping(): Promise<Health> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(`${BACKEND_URL}/health`, { cache: 'no-store', signal: controller.signal });
-    return res.ok;
+    const res = await fetch(`${BACKEND_URL}/health`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!res.ok) return 'down';
+    const body = await res.json().catch(() => null);
+    return body?.originAllowed === false ? 'blocked' : 'ok';
   } catch {
-    return false;
+    return 'down';
   } finally {
     clearTimeout(timer);
   }
@@ -49,11 +58,12 @@ export default function BackendGate({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(awake);
   const [seconds, setSeconds] = useState(0);
   const [showLoader, setShowLoader] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     if (ready) {
       // Already connected: refresh the timestamp in the background, no waiting.
-      ping().then((ok) => ok && markAwake());
+      ping().then((h) => h === 'ok' && markAwake());
       return;
     }
     let stopped = false;
@@ -70,11 +80,16 @@ export default function BackendGate({ children }: { children: React.ReactNode })
 
     (async () => {
       while (!stopped) {
-        if (await ping()) {
+        const health = await ping();
+        if (health === 'ok') {
           awake = true;
           markAwake();
           if (!stopped) setReady(true);
           return;
+        }
+        if (!stopped) {
+          setBlocked(health === 'blocked');
+          if (health === 'blocked') setShowLoader(true);
         }
         await new Promise((r) => setTimeout(r, POLL_MS));
       }
@@ -104,19 +119,41 @@ export default function BackendGate({ children }: { children: React.ReactNode })
         <div className="mt-4 text-sm font-semibold text-zinc-900">Admission &amp; Counselling Support</div>
         <div className="text-[13px] text-zinc-500">Admin panel</div>
 
-        <div className="mt-8 flex items-center justify-center gap-2 text-sm text-zinc-700" role="status" aria-live="polite">
-          <Loader2 className="size-4 animate-spin text-blue-600" />
-          {seconds < 5 ? 'Connecting to the helpline server' : 'Starting the helpline server'}
-        </div>
-        <p className="mt-2 text-[13px] text-zinc-500">
-          {seconds < 5
-            ? 'One moment.'
-            : `After a quiet period the server takes up to a minute to start. Waiting ${seconds}s.`}
-        </p>
-        {seconds >= 90 && (
-          <p className="mt-4 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-            This is taking longer than usual. Still trying; check that the backend service is running.
-          </p>
+        {blocked ? (
+          <div
+            className="mt-8 text-left text-[13px] text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-3 py-3"
+            role="alert"
+          >
+            <p className="font-medium">The helpline server is running but does not accept this address.</p>
+            <p className="mt-1.5">
+              On the backend service, add{' '}
+              <code className="font-mono">{typeof window !== 'undefined' ? window.location.origin : ''}</code> to{' '}
+              <code className="font-mono">DASHBOARD_ORIGIN</code> (comma-separated, no trailing slash) and redeploy.
+              This page connects by itself once that is done.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div
+              className="mt-8 flex items-center justify-center gap-2 text-sm text-zinc-700"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="size-4 animate-spin text-blue-600" />
+              {seconds < 5 ? 'Connecting to the helpline server' : 'Starting the helpline server'}
+            </div>
+            <p className="mt-2 text-[13px] text-zinc-500">
+              {seconds < 5
+                ? 'One moment.'
+                : `After a quiet period the server takes up to a minute to start. Waiting ${seconds}s.`}
+            </p>
+            {seconds >= 90 && (
+              <p className="mt-4 text-[13px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                This is taking longer than usual. Still trying; check that the backend service is running and that{' '}
+                <code className="font-mono">NEXT_PUBLIC_BACKEND_URL</code> points to it.
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>
