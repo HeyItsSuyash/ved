@@ -23,7 +23,7 @@ Read `docs/ARCHITECTURE.md` before changing call handling, telephony or data sto
 
 ```bash
 cd backend && npm install && npm run dev      # port 3001, needs ffmpeg, DATABASE_URL and JWT_SECRET
-cd backend && npm start                        # checks env, syncs the schema to Supabase, locks down RLS, starts
+cd backend && npm start                        # reuses a backend already on PORT; else checks env, syncs the schema to Supabase, locks down RLS, starts
 cd frontend && npm install && npm run dev     # port 3005, set NEXT_PUBLIC_BACKEND_URL
 cd frontend && npx tsc --noEmit && npm run lint
 ```

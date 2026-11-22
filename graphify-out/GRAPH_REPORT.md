@@ -1,17 +1,17 @@
-# Graph Report - ved  (2026-11-21)
+# Graph Report - ved  (2026-11-22)
 
 ## Corpus Check
-- 72 files · ~31,538 words
+- 72 files · ~33,158 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 11 file(s) not represented in the graph (top: (none) 5, .example 2, .prisma 1)
 
 ## Summary
-- 558 nodes · 1370 edges · 26 communities (21 shown, 5 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 90 edges (avg confidence: 0.85)
+- 563 nodes · 1396 edges · 24 communities (18 shown, 6 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 94 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a9a423b3`
+- Built from commit: `1c0c8b5d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,76 +31,72 @@
 - vercel.json
 - VED
 - postcss.config.mjs
-- routes/settings.js
+- webhooks.js
 - mongodb.js
 - LeadService
 - Plivo setup
-- admin.js
+- db.js
 - layout.tsx
 - route.ts
 - tts.js
-- Conversation
 - handlePlivoStream
-- xml.js
 
 ## God Nodes (most connected - your core abstractions)
 1. `Notice()` - 27 edges
-2. `Card()` - 22 edges
-3. `getCallSession()` - 22 edges
-4. `Button()` - 21 edges
-5. `updateCallSession()` - 21 edges
-6. `LivePage()` - 18 edges
-7. `cx()` - 18 edges
-8. `api()` - 18 edges
-9. `CallLogPage()` - 17 edges
-10. `KnowledgePage()` - 17 edges
+2. `getCallSession()` - 23 edges
+3. `updateCallSession()` - 23 edges
+4. `Card()` - 22 edges
+5. `Button()` - 21 edges
+6. `Conversation` - 20 edges
+7. `LivePage()` - 18 edges
+8. `cx()` - 18 edges
+9. `api()` - 18 edges
+10. `CallLogPage()` - 17 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `provider()` --calls--> `plivoConfigured()`  [EXTRACTED]
-  backend/routes/settings.js → backend/telephony/plivo/config.js
 - `handlePlivoStream()` --calls--> `Conversation`  [EXTRACTED]
   backend/telephony/plivo/stream.js → backend/pipeline/conversation.js
-- `audioFor()` --calls--> `mp3For()`  [EXTRACTED]
-  backend/telephony/plivo/lines.js → backend/pipeline/tts.js
+- `handlePlivoStream()` --calls--> `finalizeCall()`  [EXTRACTED]
+  backend/telephony/plivo/stream.js → backend/services/callRecords.js
 - `lineFor()` --calls--> `ttsProvider()`  [EXTRACTED]
   backend/telephony/plivo/lines.js → backend/pipeline/tts.js
-- `handlePlivoStream()` --calls--> `plivoClient()`  [EXTRACTED]
-  backend/telephony/plivo/stream.js → backend/telephony/plivo/config.js
+- `audioFor()` --calls--> `mp3For()`  [EXTRACTED]
+  backend/telephony/plivo/lines.js → backend/pipeline/tts.js
+- `warmLines()` --calls--> `mp3For()`  [EXTRACTED]
+  backend/telephony/plivo/lines.js → backend/pipeline/tts.js
 
 ## Import Cycles
-- 2-file cycle: `backend/pipeline/conversation.js -> backend/services/settings.js -> backend/pipeline/conversation.js`
-- 3-file cycle: `backend/pipeline/conversation.js -> backend/pipeline/tts.js -> backend/services/settings.js -> backend/pipeline/conversation.js`
-- 3-file cycle: `backend/pipeline/conversation.js -> backend/services/llm.js -> backend/services/settings.js -> backend/pipeline/conversation.js`
+- None detected.
 
-## Communities (26 total, 5 thin omitted)
+## Communities (24 total, 6 thin omitted)
 
 ### Community 0 - "KnowledgePage.tsx"
 Cohesion: 0.08
-Nodes (88): LoginForm(), LoginPage(), AuthedApp(), Home(), BackendGate(), ping(), Dashboard(), NAV (+80 more)
+Nodes (90): LoginForm(), LoginPage(), AuthedApp(), Home(), BackendGate(), markAwake(), ping(), recentlyAwake() (+82 more)
 
 ### Community 1 - "server.js"
 Cohesion: 0.08
-Nodes (22): handleExotelStatusCallback(), handleExotelVoiceWebhook(), allowedOrigins, app, cors, corsOptions, { execSync }, express (+14 more)
+Nodes (23): handleExotelStatusCallback(), handleExotelVoiceWebhook(), allowedOrigins, app, cors, corsOptions, { execSync }, express (+15 more)
 
 ### Community 2 - "exotel/stream.js"
 Cohesion: 0.08
-Nodes (58): handleExotelStreamConnection(), processUtterance(), mulawToWavBuffer(), processPostCallSummary(), { spawn }, wavToMulawBuffer(), describeWithoutSummary(), finalizeCall() (+50 more)
+Nodes (43): axios, performExotelOutboundCall(), handleExotelStreamConnection(), processUtterance(), mulawToWavBuffer(), processPostCallSummary(), { spawn }, wavToMulawBuffer() (+35 more)
 
 ### Community 3 - "backend/package.json"
-Cohesion: 0.05
-Nodes (45): author, dependencies, bcryptjs@^3.0.3, cors@^2.8.6, csv-parse@^7.0.2, dotenv@^17.3.1, google-tts-api@^2.0.2, groq-sdk@^1.1.1 (+37 more)
+Cohesion: 0.06
+Nodes (44): author, dependencies, cors@^2.8.6, csv-parse@^7.0.2, dotenv@^17.3.1, express@^5.2.1, google-tts-api@^2.0.2, groq-sdk@^1.1.1 (+36 more)
 
 ### Community 4 - "routes/auth.js"
-Cohesion: 0.22
-Nodes (11): authenticate(), jwt, jsonwebtoken@^9.0.3, bcrypt, express, jwt, router, createUser() (+3 more)
+Cohesion: 0.19
+Nodes (12): authenticate(), authorize(), jwt, bcrypt, express, jwt, router, express (+4 more)
 
 ### Community 5 - "frontend/package.json"
 Cohesion: 0.08
 Nodes (32): eslintConfig, dependencies, lucide-react@^1.7.0, next@16.1.6, react@19.2.3, react-dom@19.2.3, devDependencies, eslint@^9 (+24 more)
 
 ### Community 6 - "start.js"
-Cohesion: 0.13
-Nodes (16): db, envFile, { execSync }, fs, missing, notSet, OTHER, path (+8 more)
+Cohesion: 0.16
+Nodes (12): envFile, { execSync }, fs, path, RECOMMENDED, REQUIRED, root, applyDatabaseUrls() (+4 more)
 
 ### Community 7 - "compilerOptions"
 Cohesion: 0.11
@@ -122,9 +118,9 @@ Nodes (5): Commands, Conventions, graphify, Layout, VED
 Cohesion: 0.50
 Nodes (3): buildCommand, framework, outputDirectory
 
-### Community 15 - "routes/settings.js"
-Cohesion: 0.09
-Nodes (28): axios, performExotelOutboundCall(), express, provider(), router, addForwardingNumber(), listForwardingNumbers(), normaliseNumber() (+20 more)
+### Community 15 - "webhooks.js"
+Cohesion: 0.07
+Nodes (57): express, provider(), router, activeForwardingNumbers(), addForwardingNumber(), listForwardingNumbers(), normaliseNumber(), PUBLIC_FIELDS (+49 more)
 
 ### Community 16 - "mongodb.js"
 Cohesion: 0.18
@@ -134,47 +130,35 @@ Nodes (7): express, router, addKnowledge(), deleteKnowledge(), getAllAnalytics()
 Cohesion: 0.22
 Nodes (8): 0. Before anything: where the backend runs, 1. Account, credit and KYC, 2. Rent the number, 3. Backend environment, 4. Create the application, 5. Link the number and test, How a call flows, Plivo setup
 
-### Community 19 - "admin.js"
-Cohesion: 0.24
-Nodes (7): authorize(), express@^5.2.1, express, router, express, router, express
+### Community 19 - "db.js"
+Cohesion: 0.17
+Nodes (8): bcryptjs@^3.0.3, express, router, bcrypt, bcrypt, prisma, { PrismaClient }, bcryptjs
 
 ### Community 21 - "route.ts"
 Cohesion: 0.38
 Nodes (6): dynamic, esc(), GET, handle(), POST, xml()
 
 ### Community 22 - "tts.js"
-Cohesion: 0.16
-Nodes (25): toMulaw8k(), digitsOneByOne(), EXPANSIONS, hindiNumber(), ONES, toSpeech(), cache, cacheKey() (+17 more)
-
-### Community 23 - "Conversation"
-Cohesion: 0.16
-Nodes (7): MULAW_TO_PCM, mulawRms(), mulawToPcm16(), mulawToWav(), pcm16ToWav(), { spawn }, Conversation
-
-### Community 24 - "handlePlivoStream"
-Cohesion: 0.23
-Nodes (8): publicBaseUrl(), check(), requirePlivoSignature(), { validateV3Signature }, verificationDisabled(), verifyStreamUpgrade(), handlePlivoStream(), PacedSender
-
-### Community 25 - "xml.js"
-Cohesion: 0.56
-Nodes (8): dialXml(), esc(), hangupXml(), line(), record(), sayAndHangupXml(), streamXml(), wrap()
+Cohesion: 0.11
+Nodes (33): toMulaw8k(), digitsOneByOne(), EXPANSIONS, hindiNumber(), ONES, toSpeech(), cache, cacheKey() (+25 more)
 
 ## Knowledge Gaps
-- **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `express` connect `admin.js` to `server.js`, `exotel/stream.js`, `backend/package.json`, `routes/auth.js`, `routes/settings.js`, `mongodb.js`?**
+- **Why does `express` connect `webhooks.js` to `server.js`, `backend/package.json`, `routes/auth.js`, `mongodb.js`, `db.js`?**
   _High betweenness centrality (0.022) - this node is a cross-community bridge._
 - **Should `KnowledgePage.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.08278388278388278 - nodes in this community are weakly interconnected._
-- **Why does `handlePlivoStream()` connect `handlePlivoStream` to `server.js`, `exotel/stream.js`, `Conversation`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+  _Cohesion score 0.08040909892435197 - nodes in this community are weakly interconnected._
+- **Why does `Conversation` connect `exotel/stream.js` to `handlePlivoStream`, `webhooks.js`?**
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
 - **Should `server.js` be split into smaller, more focused modules?**
   _Cohesion score 0.07936507936507936 - nodes in this community are weakly interconnected._
-- **Why does `Conversation` connect `Conversation` to `handlePlivoStream`, `exotel/stream.js`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+- **Why does `handlePlivoStream()` connect `handlePlivoStream` to `server.js`, `exotel/stream.js`, `webhooks.js`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
 - **Should `exotel/stream.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.08099794941900205 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0770735524256651 - nodes in this community are weakly interconnected._
 - **Should `backend/package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.05142857142857143 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05858585858585859 - nodes in this community are weakly interconnected._

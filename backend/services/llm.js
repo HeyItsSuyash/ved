@@ -97,9 +97,11 @@ You MUST respond with a valid JSON object matching this exact structure:
   "sentiment": "positive | neutral | negative | frustrated | satisfied",
   "action_item": null,
   "language": "hi or en: the language of 'spoken' (hi for Hindi and Hinglish)",
-  "transfer_to_human": false
+  "transfer_to_human": false,
+  "end_call": false
 }
 Set "transfer_to_human" to true when the AGENT INSTRUCTIONS say to hand the caller to a person.
+Set "end_call" to true when the AGENT INSTRUCTIONS say to end the call; the closing greeting is added after your line.
 Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 `;
 

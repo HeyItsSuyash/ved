@@ -23,6 +23,26 @@ const RECOMMENDED = {
   ELEVENLABS_API_KEY: 'the agent voice; without it the basic Google voice is used',
 };
 
+// If a backend already answers on this port, use it instead of starting a second one
+// (a second start only fails with "address in use" and wastes a restart cycle).
+function alreadyRunning(port) {
+  return new Promise((resolve) => {
+    const req = require('http').get({ host: '127.0.0.1', port, path: '/health', timeout: 1000 }, (res) => {
+      res.resume();
+      resolve(res.statusCode === 200);
+    });
+    req.on('timeout', () => req.destroy());
+    req.on('error', () => resolve(false));
+  });
+}
+
+(async function main() {
+  const port = Number(process.env.PORT) || 3001;
+  if (await alreadyRunning(port)) {
+    console.log(`[startup] A backend is already running on port ${port} and answering /health. Using it; not starting another.`);
+    return;
+  }
+
 // Print which variables this process can see (names only, never values), so a deploy
 // log shows at a glance whether the host passed its settings through.
 const OTHER = ['TELEPHONY_PROVIDER', 'DASHBOARD_ORIGIN', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'PORT'];
@@ -36,7 +56,7 @@ if (missing.length) {
   console.error('[startup] Cannot start. Missing required environment variables:');
   for (const k of missing) console.error(`  - ${k}: ${REQUIRED[k]}`);
   console.error('[startup] If you added them on the host, check they are on this service (not only an unlinked environment group) and that the change was saved and redeployed.');
-  process.exit(1);
+  return process.exit(1);
 }
 
 const notSet = Object.keys(RECOMMENDED).filter((k) => !process.env[k]);
@@ -55,7 +75,7 @@ try {
 } catch {
   console.error('[startup] Could not update the database schema. Check that DATABASE_URL is correct and the database is reachable.');
   console.error('[startup] Supabase: use Connect > Session pooler (port 5432) and replace [YOUR-PASSWORD] with the database password.');
-  process.exit(1);
+  return process.exit(1);
 }
 
 try {
@@ -71,3 +91,4 @@ try {
 }
 
 require('../server');
+})();

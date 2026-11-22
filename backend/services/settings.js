@@ -19,9 +19,18 @@ Facts:
 - If the answer is not there, say so politely and offer to connect the caller to a counsellor who can clear the doubt.
 
 Handing over:
-- If the caller wants to speak to a person, or you could not clear their doubt after two tries, set "transfer_to_human" to true and say something like: "जी, मैं आपको अभी हमारे काउंसलर से जोड़ देता हूँ, वो आपका डाउट क्लियर कर देंगे।"`,
+- If the caller wants to speak to a person, or you could not clear their doubt after two tries, set "transfer_to_human" to true and say something like: "जी, मैं आपको अभी हमारे काउंसलर से जोड़ देता हूँ, वो आपका डाउट क्लियर कर देंगे।" If no counsellor is free, the system tells the caller their question will be passed on and ends the call politely.
+
+Ending the call:
+- When the caller's question is answered and they have nothing more to ask, give a short final answer and set "end_call" to true. The closing greeting is played after your line, so do not say goodbye yourself.
+- This helpline is only for admission and counselling at the university. If the caller talks about something unrelated, politely say so once and ask what they need about admission. If they continue with unrelated, abusive or prank talk, say one short polite line and set "end_call" to true.
+- Never end the call while a genuine admission question is still open.`,
   greeting: 'नमस्ते, मदन मोहन मालवीय यूनिवर्सिटी हेल्पलाइन में आपका स्वागत है। यह कॉल रिकॉर्ड की जा रही है। बताइए, मैं आपकी क्या सेवा कर सकता हूँ?',
   holdMessage: 'जी, कृपया लाइन पर बने रहिए, मैं आपको हमारे काउंसलर से जोड़ रहा हूँ।',
+  closingMessage: 'मदन मोहन मालवीय यूनिवर्सिटी हेल्पलाइन पर कॉल करने के लिए धन्यवाद। आपका दिन शुभ हो, नमस्ते।',
+  followUpMessage:
+    'माफ़ कीजिए, इसकी सही जानकारी अभी मेरे पास नहीं है और इस समय कोई काउंसलर फ्री नहीं है। मैंने आपका सवाल काउंसलर तक पहुँचा दिया है, वो आपसे इसी नंबर पर संपर्क करेंगे।',
+  rateLimitMessage: 'आप पिछले एक घंटे में कई बार कॉल कर चुके हैं। कृपया थोड़ी देर बाद दोबारा कॉल कीजिए। धन्यवाद।',
   unavailableMessage:
     'माफ़ कीजिए, अभी हमारे सभी काउंसलर दूसरी कॉल पर हैं। कृपया थोड़ी देर बाद कॉल कीजिए, या सुबह दस से शाम पाँच बजे के बीच एडमिशन ऑफिस आ जाइए।',
   voiceId: 'PqovzlPXjFmB5NRVvFVe',
@@ -29,6 +38,7 @@ Handing over:
   voiceSpeed: 1.0,
   agentEnabled: true,
   maxConcurrentCalls: 5,
+  maxCallsPerHour: 5,
   forwardTimeoutSeconds: 20,
 };
 
@@ -84,6 +94,10 @@ function validate(input) {
       const n = Number(value);
       if (!Number.isInteger(n) || n < 0 || n > 100) throw new Error('maxConcurrentCalls must be a whole number from 0 to 100');
       out[key] = n;
+    } else if (key === 'maxCallsPerHour') {
+      const n = Number(value);
+      if (!Number.isInteger(n) || n < 0 || n > 100) throw new Error('maxCallsPerHour must be a whole number from 0 (no limit) to 100');
+      out[key] = n;
     } else if (key === 'forwardTimeoutSeconds') {
       const n = Number(value);
       if (!Number.isInteger(n) || n < 5 || n > 120) throw new Error('forwardTimeoutSeconds must be from 5 to 120');
@@ -116,14 +130,18 @@ async function updateSettings(input) {
   cache = pick(row);
   // Pre-generate audio for edited lines so the next caller hears them without delay.
   const voiceChanged = 'voiceId' in data || 'voiceTone' in data || 'voiceSpeed' in data;
-  if (data.greeting || voiceChanged) {
-    const { RESUME_LINE } = require('../pipeline/conversation');
-    require('../pipeline/tts').warmUp([cache.greeting, RESUME_LINE]).catch(() => {});
+  if (data.greeting || data.closingMessage || data.followUpMessage || voiceChanged) {
+    require('../pipeline/tts').warmUp(spokenLines(cache)).catch(() => {});
   }
-  if (data.holdMessage || data.unavailableMessage || voiceChanged) {
+  if (data.holdMessage || data.unavailableMessage || data.rateLimitMessage || data.closingMessage || data.followUpMessage || voiceChanged) {
     require('../telephony/plivo/lines').warmLines().catch(() => {});
   }
   return cache;
+}
+
+/** Fixed lines the agent speaks inside a call; synthesized ahead so they play at once. */
+function spokenLines(s = cache) {
+  return [s.greeting, s.closingMessage, s.followUpMessage];
 }
 
 function pick(row) {
@@ -132,4 +150,4 @@ function pick(row) {
   return out;
 }
 
-module.exports = { loadSettings, getSettings, updateSettings, DEFAULTS, VOICES, TONES };
+module.exports = { loadSettings, getSettings, updateSettings, spokenLines, DEFAULTS, VOICES, TONES };

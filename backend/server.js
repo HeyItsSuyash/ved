@@ -384,8 +384,7 @@ const PORT = process.env.PORT || 3001;
 require('./services/bootstrap').ensureAdmin().then(loadSettings).then((settings) => {
   // Pre-synthesize the greeting so callers hear it at once.
   const { warmUp } = require('./pipeline/tts');
-  const { RESUME_LINE } = require('./pipeline/conversation');
-  warmUp([settings.greeting, RESUME_LINE]);
+  warmUp(require('./services/settings').spokenLines(settings));
   require('./telephony/plivo/lines').warmLines();
 }).then(() => server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend server fully operational on port ${PORT}`);

@@ -3,7 +3,7 @@ const { getCallSession, updateCallSession } = require('../../state/calls');
 const { finalizeCall } = require('../../services/callRecords');
 const { activeForwardingNumbers } = require('../../services/forwarding');
 const { requirePlivoSignature } = require('./signature');
-const { agentUnavailableReason, ensureSession, streamResponse, forwardResponse } = require('./routing');
+const { agentUnavailableReason, ensureSession, streamResponse, forwardResponse, overCallLimit } = require('./routing');
 const xml = require('./xml');
 const { audioFor, lineFor } = require('./lines');
 const { textForCall } = require('../../services/verification');
@@ -66,6 +66,13 @@ router.all('/answer', async (req, res) => {
 
     // Plivo retries callbacks: give a repeated request the same answer.
     if (session.aiActive) return sendXml(res, streamResponse(callUuid));
+
+    // Rate limit: one number calling again and again (prank or stuck redial) is turned away.
+    if (!session.recordingStarted && (await overCallLimit(caller, callUuid))) {
+      console.log(`[Plivo] Rate limited ${caller} (${callUuid})`);
+      updateCallSession(callUuid, { outcome: 'rate_limited' });
+      return sendXml(res, xml.sayAndHangupXml(lineFor('rate_limited')));
+    }
 
     const busy = agentUnavailableReason();
     if (!busy) return sendXml(res, streamResponse(callUuid));

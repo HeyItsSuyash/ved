@@ -3,6 +3,7 @@ const { finalizeCall } = require('../../services/callRecords');
 const { Conversation } = require('../../pipeline/conversation');
 const { plivoClient, url } = require('./config');
 const { verifyStreamUpgrade } = require('./signature');
+const { staffAvailable } = require('./routing');
 
 const LEAD_MS = 400; // how far ahead of real time we let Plivo's playback buffer run
 const TICK_MS = 40;
@@ -90,6 +91,10 @@ function handlePlivoStream(ws, req) {
         alegMethod: 'POST',
       });
       setTimeout(() => ws.close(1000, 'transferred'), 200);
+    },
+    staffAvailable: () => staffAvailable(),
+    hangup: async () => {
+      await plivoClient().calls.hangup(callUuid);
     },
   };
 

@@ -30,8 +30,9 @@ async function finalizeCall(callSid, extra = {}) {
   }
 
   const outcome = s.outcome || (s.turns.length > 0 ? 'answered_by_ai' : 'missed');
-  const resolution =
-    summary?.resolution || (outcome === 'forwarded' ? 'escalated' : outcome === 'missed' ? 'unresolved' : null);
+  const resolution = s.followUp
+    ? 'follow_up_needed'
+    : summary?.resolution || (outcome === 'forwarded' ? 'escalated' : outcome === 'missed' ? 'unresolved' : null);
 
   try {
     const record = await prisma.call.create({
@@ -48,6 +49,7 @@ async function finalizeCall(callSid, extra = {}) {
         outcome,
         forwarded_to: s.forwardedTo || null,
         recording_url: s.recordingUrl || null,
+        follow_up_question: s.followUpQuestion || null,
         callData: {
           transcript: s.turns,
           startTime: s.startTime,
@@ -87,6 +89,7 @@ function describeWithoutSummary(s, outcome) {
   if (outcome === 'forwarded') {
     return `${why ? `Forwarded because ${why}. ` : ''}${s.forwardedTo ? `Answered by ${s.forwardedTo}.` : 'No one answered.'}`;
   }
+  if (outcome === 'rate_limited') return 'Turned away: this number called too many times in the last hour.';
   if (outcome === 'missed') {
     return why ? `Forwarded because ${why}, but no one answered.` : 'Caller hung up before speaking.';
   }

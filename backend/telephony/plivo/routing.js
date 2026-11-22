@@ -72,10 +72,19 @@ async function forwardResponse(callUuid, { attempt = 0, reason, calledNumber }) 
     });
   }
 
-  // Nobody picked up. If the agent handed this caller over and still has room, take them back.
-  if (HANDOVER_REASONS.has(reason) && !agentUnavailableReason()) {
-    updateCallSession(callUuid, { outcome: undefined, forwardReason: `${reason}_unanswered` });
-    return streamResponse(callUuid, { resume: true });
+  // Nobody picked up after the agent handed this caller over: their question goes to a
+  // counsellor for follow-up, then the closing greeting, then the call ends.
+  if (HANDOVER_REASONS.has(reason)) {
+    const s = getCallSession(callUuid);
+    const lastQuestion = [...(s?.turns || [])].reverse().find((t) => t.speaker === 'user')?.text || null;
+    updateCallSession(callUuid, {
+      outcome: 'answered_by_ai',
+      forwardReason: `${reason}_unanswered`,
+      followUp: true,
+      followUpQuestion: lastQuestion,
+      aiActive: false,
+    });
+    return xml.sayAndHangupXml(lineFor('follow_up'), lineFor('closing'));
   }
 
   const session = getCallSession(callUuid);
@@ -84,4 +93,31 @@ async function forwardResponse(callUuid, { attempt = 0, reason, calledNumber }) 
   return xml.sayAndHangupXml(lineFor('unavailable'));
 }
 
-module.exports = { activeAgentCalls, agentUnavailableReason, ensureSession, streamResponse, forwardResponse };
+/**
+ * True when this number has already called maxCallsPerHour times in the last hour
+ * (saved calls plus any still in progress). 0 turns the limit off.
+ */
+async function overCallLimit(phone, callUuid) {
+  const limit = getSettings().maxCallsPerHour;
+  if (!limit || !phone || phone === 'unknown') return false;
+  const since = new Date(Date.now() - 60 * 60 * 1000);
+  const prisma = require('../../services/db');
+  let saved;
+  try {
+    // Calls already turned away do not count, so a blocked caller is let in again after an hour.
+    saved = await prisma.call.count({
+      where: { phone, createdAt: { gte: since }, OR: [{ outcome: null }, { outcome: { not: 'rate_limited' } }] },
+    });
+  } catch (err) {
+    console.error('[Plivo] Rate-limit check failed, letting the call in:', err.message);
+    return false;
+  }
+  const live = getAllCalls().filter((c) => c.phoneNumber === phone && c.callSid !== callUuid && !c.finalized).length;
+  return saved + live >= limit;
+}
+
+async function staffAvailable() {
+  return (await activeForwardingNumbers()).length > 0;
+}
+
+module.exports = { overCallLimit, staffAvailable, activeAgentCalls, agentUnavailableReason, ensureSession, streamResponse, forwardResponse };

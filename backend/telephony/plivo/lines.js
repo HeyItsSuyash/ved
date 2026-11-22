@@ -14,6 +14,9 @@ function textFor(id) {
   if (id === 'hold') return s.holdMessage;
   if (id === 'hold_recorded') return `${RECORDING_NOTICE} ${s.holdMessage}`;
   if (id === 'unavailable') return s.unavailableMessage;
+  if (id === 'closing') return s.closingMessage;
+  if (id === 'follow_up') return s.followUpMessage;
+  if (id === 'rate_limited') return s.rateLimitMessage;
   if (id === 'error') return ERROR_LINE;
   return null;
 }
@@ -42,7 +45,7 @@ async function audioFor(file) {
 /** Generate the MP3s ahead of the first call. */
 async function warmLines() {
   if (ttsProvider() !== 'elevenlabs') return;
-  for (const id of ['hold', 'hold_recorded', 'error', 'unavailable']) {
+  for (const id of ['hold', 'hold_recorded', 'error', 'unavailable', 'closing', 'follow_up', 'rate_limited']) {
     try {
       await mp3For(textFor(id));
     } catch (err) {

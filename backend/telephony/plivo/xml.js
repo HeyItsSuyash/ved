@@ -51,8 +51,9 @@ function dialXml({ number, callerId, timeout, actionUrl, announce, recordingCall
   );
 }
 
-function sayAndHangupXml(message) {
-  return wrap(line(message) + '  <Hangup/>');
+/** One or more lines, then hang up. */
+function sayAndHangupXml(...messages) {
+  return wrap(messages.map(line).join('') + '  <Hangup/>');
 }
 
 function hangupXml() {

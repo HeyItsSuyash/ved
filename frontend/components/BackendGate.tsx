@@ -9,6 +9,27 @@ import { BACKEND_URL } from '@/lib/api';
 // answers, show a loader instead of a dashboard full of failing requests.
 const POLL_MS = 2500;
 const REQUEST_TIMEOUT_MS = 8000;
+const SHOW_LOADER_AFTER_MS = 700; // an awake backend answers sooner: no loader flash
+const AWAKE_KEY = 'ved_backend_awake_at';
+const AWAKE_TTL_MS = 10 * 60 * 1000;
+
+// Seen awake recently in this tab: connect straight away instead of waiting on a check.
+function recentlyAwake(): boolean {
+  try {
+    return Date.now() - Number(sessionStorage.getItem(AWAKE_KEY) || 0) < AWAKE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markAwake() {
+  try {
+    sessionStorage.setItem(AWAKE_KEY, String(Date.now()));
+  } catch {
+    // storage unavailable: the next load simply checks again
+  }
+}
+
 let awake = false; // once awake, later page loads in this tab skip the wait
 
 async function ping(): Promise<boolean> {
@@ -27,17 +48,31 @@ async function ping(): Promise<boolean> {
 export default function BackendGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(awake);
   const [seconds, setSeconds] = useState(0);
+  const [showLoader, setShowLoader] = useState(false);
 
   useEffect(() => {
-    if (ready) return;
+    if (ready) {
+      // Already connected: refresh the timestamp in the background, no waiting.
+      ping().then((ok) => ok && markAwake());
+      return;
+    }
     let stopped = false;
+    if (recentlyAwake()) {
+      // Seen awake in the last few minutes: connect straight away, re-check in the background.
+      Promise.resolve().then(() => !stopped && setReady(true));
+      return () => {
+        stopped = true;
+      };
+    }
     const started = Date.now();
     const tick = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    const reveal = setTimeout(() => setShowLoader(true), SHOW_LOADER_AFTER_MS);
 
     (async () => {
       while (!stopped) {
         if (await ping()) {
           awake = true;
+          markAwake();
           if (!stopped) setReady(true);
           return;
         }
@@ -48,10 +83,12 @@ export default function BackendGate({ children }: { children: React.ReactNode })
     return () => {
       stopped = true;
       clearInterval(tick);
+      clearTimeout(reveal);
     };
   }, [ready]);
 
   if (ready) return <>{children}</>;
+  if (!showLoader) return <div className="min-h-screen bg-zinc-50" />;
 
   return (
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">

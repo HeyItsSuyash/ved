@@ -43,7 +43,7 @@ export default function AgentPage() {
               onSave={(persona) => onSave('persona', { persona })}
             />
             <ConversationCard
-              key={`conv-${settings.greeting}\u0000${settings.systemPrompt}`}
+              key={`conv-${settings.greeting}\u0000${settings.systemPrompt}\u0000${settings.closingMessage}\u0000${settings.followUpMessage}`}
               settings={settings}
               saving={saving}
               saved={saved === 'conversation'}
@@ -134,7 +134,19 @@ function ConversationCard({
 }) {
   const [greeting, setGreeting] = useState(settings.greeting);
   const [prompt, setPrompt] = useState(settings.systemPrompt);
-  const dirty = greeting !== settings.greeting || prompt !== settings.systemPrompt;
+  const [closing, setClosing] = useState(settings.closingMessage);
+  const [followUp, setFollowUp] = useState(settings.followUpMessage);
+  const dirty =
+    greeting !== settings.greeting ||
+    prompt !== settings.systemPrompt ||
+    closing !== settings.closingMessage ||
+    followUp !== settings.followUpMessage;
+  const reset = () => {
+    setGreeting(settings.greeting);
+    setPrompt(settings.systemPrompt);
+    setClosing(settings.closingMessage);
+    setFollowUp(settings.followUpMessage);
+  };
 
   return (
     <Card
@@ -143,7 +155,7 @@ function ConversationCard({
       actions={
         <>
           {dirty && (
-            <Button size="sm" onClick={() => { setGreeting(settings.greeting); setPrompt(settings.systemPrompt); }}>
+            <Button size="sm" onClick={reset}>
               Discard
             </Button>
           )}
@@ -151,8 +163,8 @@ function ConversationCard({
             size="sm"
             variant="primary"
             loading={saving && dirty}
-            disabled={!dirty || !greeting.trim() || !prompt.trim()}
-            onClick={() => onSave({ greeting, systemPrompt: prompt })}
+            disabled={!dirty || !greeting.trim() || !prompt.trim() || !closing.trim() || !followUp.trim()}
+            onClick={() => onSave({ greeting, systemPrompt: prompt, closingMessage: closing, followUpMessage: followUp })}
           >
             Save
           </Button>
@@ -163,6 +175,20 @@ function ConversationCard({
         {saved && !dirty && <Notice tone="green">Saved. New calls use these instructions.</Notice>}
         <Field label="Greeting" htmlFor="greeting" hint="The first thing callers hear. Keep the recording notice.">
           <Textarea id="greeting" rows={2} value={greeting} onChange={(e) => { setGreeting(e.target.value); onEdit(); }} />
+        </Field>
+        <Field
+          label="Closing greeting"
+          htmlFor="closing"
+          hint="Said before the agent ends a call: when the caller's question is answered, or when they keep to unrelated talk."
+        >
+          <Textarea id="closing" rows={2} value={closing} onChange={(e) => { setClosing(e.target.value); onEdit(); }} />
+        </Field>
+        <Field
+          label="When no counsellor is free"
+          htmlFor="follow-up"
+          hint="Said when the agent cannot answer and nobody on the forwarding list picks up. The question is saved in the call log for follow-up, then the closing greeting plays and the call ends."
+        >
+          <Textarea id="follow-up" rows={3} value={followUp} onChange={(e) => { setFollowUp(e.target.value); onEdit(); }} />
         </Field>
         <Field label="Instructions" htmlFor="prompt">
           <Textarea

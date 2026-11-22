@@ -47,7 +47,8 @@ class Conversation {
     this.pendingMark = null;
     this.markTimer = null;
     this.ttsAbort = null;
-    this.transferAfterSpeech = false;
+    this.afterSpeech = null; // what to do once the current line has played: 'transfer' | 'close' | 'hangup'
+    this.closing = false;
     this.ended = false;
   }
 
@@ -84,6 +85,7 @@ class Conversation {
       this.preRoll.push(frame);
       if (this.preRoll.length > PRE_ROLL_FRAMES) this.preRoll.shift();
 
+      if (this.closing) return; // the call is being wrapped up; nothing more to answer
       const needed = this.speaking ? BARGE_IN_FRAMES : START_FRAMES;
       if (this.loudRun >= needed) {
         if (this.speaking) this.bargeIn();
@@ -113,9 +115,9 @@ class Conversation {
   }
 
   onDtmf(digit) {
-    if (digit === '0') {
-      this.log.info?.(`[Conv ${this.callSid}] Caller pressed 0, handing over`);
-      this.handOver('caller_pressed_0');
+    if (digit === '0' && !this.closing) {
+      this.log.info?.(`[Conv ${this.callSid}] Caller pressed 0`);
+      this.requestHuman('caller_pressed_0');
     }
   }
 
@@ -131,7 +133,7 @@ class Conversation {
     this.log.info?.(`[Conv ${this.callSid}] Caller interrupted`);
     this.ttsAbort?.abort();
     this.t.clear();
-    this.transferAfterSpeech = false;
+    this.afterSpeech = null;
     this.donePlaying();
   }
 
@@ -153,7 +155,7 @@ class Conversation {
     const t0 = Date.now();
     const stt = await getGroqSTT(mulawToWav(mulaw));
     const text = stt?.transcript?.trim();
-    if (!text || turnId !== this.turnId || this.ended) return;
+    if (!text || turnId !== this.turnId || this.ended || this.closing) return;
     const t1 = Date.now();
 
     const session = getCallSession(this.callSid);
@@ -161,7 +163,7 @@ class Conversation {
     addTurn(this.callSid, { timestamp: new Date().toISOString(), speaker: 'user', text, language: stt.language_code });
 
     const reply = await getLLMResponse(history, text, session.memory || [], session.knowledge || []);
-    if (turnId !== this.turnId || this.ended) return;
+    if (turnId !== this.turnId || this.ended || this.closing) return;
     const t2 = Date.now();
 
     addTurn(this.callSid, {
@@ -173,7 +175,14 @@ class Conversation {
       language: reply.language,
     });
 
-    this.transferAfterSpeech = reply.transfer_to_human === true;
+    if (reply.transfer_to_human === true) {
+      // Say the handover line, then transfer, or close politely if no counsellor can be reached.
+      this.afterSpeech = (await this.staffAvailable()) ? 'transfer' : 'follow_up';
+    } else if (reply.end_call === true) {
+      // Query resolved, or the caller kept to unrelated talk: closing greeting, then hang up.
+      this.afterSpeech = 'close';
+      updateCallSession(this.callSid, { endedBy: 'agent' });
+    }
     const firstAudioAt = await this.say(reply.spoken, reply.language);
     this.log.info?.(
       `[Conv ${this.callSid}] latency stt=${t1 - t0}ms llm=${t2 - t1}ms tts_first_audio=${firstAudioAt ? firstAudioAt - t2 : '-'}ms`
@@ -217,10 +226,26 @@ class Conversation {
     clearTimeout(this.markTimer);
     this.pendingMark = null;
     this.speaking = false;
-    if (this.transferAfterSpeech) {
-      this.transferAfterSpeech = false;
-      this.handOver('agent_requested');
+    const next = this.afterSpeech;
+    this.afterSpeech = null;
+    if (next === 'transfer') this.handOver('agent_requested');
+    else if (next === 'follow_up') this.followUp();
+    else if (next === 'close') this.close();
+    else if (next === 'hangup') this.hangUp();
+  }
+
+  async staffAvailable() {
+    try {
+      return Boolean(await this.t.staffAvailable?.());
+    } catch {
+      return false;
     }
+  }
+
+  /** The caller wants a person (or pressed 0): transfer if anyone can take it, otherwise follow up. */
+  async requestHuman(reason) {
+    if (await this.staffAvailable()) this.handOver(reason);
+    else this.followUp();
   }
 
   handOver(reason) {
@@ -229,6 +254,37 @@ class Conversation {
     Promise.resolve(this.t.transfer(reason)).catch((err) =>
       this.log.error(`[Conv ${this.callSid}] Transfer failed:`, err.message)
     );
+  }
+
+  /**
+   * No counsellor can be reached: tell the caller their question goes to a counsellor,
+   * mark the call for follow-up (it shows in the call log), then close the call.
+   */
+  followUp() {
+    if (this.ended) return;
+    const session = getCallSession(this.callSid);
+    const lastQuestion = [...(session?.turns || [])].reverse().find((t) => t.speaker === 'user')?.text || null;
+    updateCallSession(this.callSid, { followUp: true, followUpQuestion: lastQuestion });
+    const { followUpMessage } = getSettings();
+    this.closing = true;
+    this.afterSpeech = 'close';
+    addTurn(this.callSid, { timestamp: new Date().toISOString(), speaker: 'ai', text: followUpMessage, language: 'hi' });
+    this.say(followUpMessage, 'hi', { cached: true });
+  }
+
+  /** Closing greeting from the dashboard, then hang up once it has played. */
+  close() {
+    if (this.ended) return;
+    const { closingMessage } = getSettings();
+    this.closing = true;
+    this.afterSpeech = 'hangup';
+    addTurn(this.callSid, { timestamp: new Date().toISOString(), speaker: 'ai', text: closingMessage, language: 'hi' });
+    this.say(closingMessage, 'hi', { cached: true });
+  }
+
+  hangUp() {
+    if (this.ended) return;
+    Promise.resolve(this.t.hangup?.()).catch((err) => this.log.error(`[Conv ${this.callSid}] Hang-up failed:`, err.message));
   }
 }
 

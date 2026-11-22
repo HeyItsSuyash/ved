@@ -12,6 +12,10 @@ export type Settings = {
   voiceSpeed: number;
   greeting: string;
   holdMessage: string;
+  closingMessage: string;
+  followUpMessage: string;
+  rateLimitMessage: string;
+  maxCallsPerHour: number;
   unavailableMessage: string;
   agentEnabled: boolean;
   maxConcurrentCalls: number;

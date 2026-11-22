@@ -58,6 +58,8 @@ model Call {
   outcome           String?
   forwarded_to      String?
   recording_url     String?
+  /// What the caller asked when no counsellor could be reached; for staff to follow up.
+  follow_up_question String?
 
   entity            Entity?  @relation(fields: [entity_id], references: [id])
 
@@ -104,6 +106,9 @@ model Setting {
   systemPrompt          String   @map("system_prompt")
   greeting              String
   holdMessage           String   @default("कृपया लाइन पर बने रहें, मैं आपको काउंसलर से जोड़ रहा हूँ।") @map("hold_message")
+  closingMessage        String   @default("मदन मोहन मालवीय यूनिवर्सिटी हेल्पलाइन पर कॉल करने के लिए धन्यवाद। आपका दिन शुभ हो, नमस्ते।") @map("closing_message")
+  followUpMessage       String   @default("माफ़ कीजिए, इसकी सही जानकारी अभी मेरे पास नहीं है और इस समय कोई काउंसलर फ्री नहीं है। मैंने आपका सवाल काउंसलर तक पहुँचा दिया है, वो आपसे इसी नंबर पर संपर्क करेंगे।") @map("follow_up_message")
+  rateLimitMessage      String   @default("आप पिछले एक घंटे में कई बार कॉल कर चुके हैं। कृपया थोड़ी देर बाद दोबारा कॉल कीजिए। धन्यवाद।") @map("rate_limit_message")
   unavailableMessage    String   @map("unavailable_message")
   persona               String   @default("")
   voiceId               String   @default("PqovzlPXjFmB5NRVvFVe") @map("voice_id")
@@ -111,6 +116,8 @@ model Setting {
   voiceSpeed            Float    @default(1.0) @map("voice_speed")
   agentEnabled          Boolean  @default(true) @map("agent_enabled")
   maxConcurrentCalls    Int      @default(5) @map("max_concurrent_calls")
+  /// Calls one phone number may make per hour before being turned away; 0 = no limit.
+  maxCallsPerHour       Int      @default(5) @map("max_calls_per_hour")
   forwardTimeoutSeconds Int      @default(20) @map("forward_timeout_seconds")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

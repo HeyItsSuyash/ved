@@ -19,6 +19,7 @@ type CallRecord = {
   forwarded_to?: string | null;
   duration_s?: number | null;
   recording_url?: string | null;
+  follow_up_question?: string | null;
   callData?: {
     transcript?: Turn[];
     resolution?: string;
@@ -34,13 +35,15 @@ export function outcomeOf(c: { resolution_status?: string | null; callData?: { r
 export function OutcomeBadge({ outcome }: { outcome: string }) {
   if (outcome === 'resolved') return <Badge tone="green">Resolved</Badge>;
   if (outcome === 'escalated') return <Badge tone="amber">Escalated</Badge>;
-  if (outcome === 'unresolved' || outcome === 'follow_up_needed') return <Badge tone="red">Unresolved</Badge>;
+  if (outcome === 'follow_up_needed') return <Badge tone="amber">Follow up</Badge>;
+  if (outcome === 'unresolved') return <Badge tone="red">Unresolved</Badge>;
   return <Badge>Unknown</Badge>;
 }
 
 function handledBy(c: CallRecord): string {
   if (c.outcome === 'forwarded') return c.forwarded_to ? `Staff · ${c.forwarded_to}` : 'Staff · no answer';
   if (c.outcome === 'missed') return 'Missed';
+  if (c.outcome === 'rate_limited') return 'Rate limited';
   return 'Agent';
 }
 
@@ -147,6 +150,12 @@ export default function CallLogPage() {
                                 <p className="text-sm text-zinc-800 leading-relaxed">
                                   {c.summary || 'No summary was generated for this call.'}
                                 </p>
+                                {c.follow_up_question && (
+                                  <>
+                                    <h3 className="text-xs font-medium text-zinc-500 mt-4 mb-1.5">Question for a counsellor</h3>
+                                    <p className="text-sm text-zinc-800 leading-relaxed">{c.follow_up_question}</p>
+                                  </>
+                                )}
                                 <h3 className="text-xs font-medium text-zinc-500 mt-4 mb-1.5">Recording</h3>
                                 {c.recording_url ? (
                                   <audio controls preload="none" src={c.recording_url} className="w-full max-w-sm h-9" />

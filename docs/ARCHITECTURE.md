@@ -212,6 +212,10 @@ Forwarding numbers must be verified: `services/verification.js` stores a hash of
 
 Database (Supabase): `services/dbUrl.js` accepts either Supabase pooler. Session mode (5432) is used as is; for transaction mode (6543) it adds `pgbouncer=true` and a connection limit for queries and derives a session-mode `DIRECT_URL` for `prisma db push`. `sslmode=require` is added for Supabase hosts. Because Supabase exposes the `public` schema through its Data API, every start runs `prisma/sql/lockdown.sql`: RLS on for all public tables and `anon`/`authenticated` privileges revoked. The backend connects as the table owner, so it is unaffected.
 
-Wake-up: the dashboard shows a loader until `GET /health` answers, because the free Render instance sleeps and takes up to a minute to start.
+Wake-up: the dashboard shows a loader until `GET /health` answers, because the free Render instance sleeps and takes up to a minute to start. If the backend answered in the last 10 minutes (sessionStorage), the dashboard connects straight away, and the loader only appears when the first check takes longer than 700 ms. `npm start` first checks `GET /health` on its own port: if a backend is already running there it uses that one and exits, instead of starting a second copy.
 
-Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same.
+Handover: the LLM returns `transfer_to_human: true` when the caller asks for a person or two questions went unanswered; the agent finishes its sentence, then the call is transferred. Pressing 0 does the same. If no verified number is active, or nobody on the list picks up, the caller hears the follow-up message (the question is passed to a counsellor), then the closing greeting, and the call ends. The call is saved as `follow_up_needed` with the caller's question in `calls.follow_up_question`, shown in the call log.
+
+Ending calls: the LLM returns `end_call: true` when the caller's question is answered, or when they keep to unrelated, abusive or prank talk after one redirect (rules in the dashboard prompt). The agent finishes its line, plays the closing greeting (Agent > Closing greeting), then hangs up through the Plivo API.
+
+Rate limit: at `/plivo/answer`, a caller who has already made `max_calls_per_hour` calls in the last hour (saved calls plus live ones; 0 turns the limit off) hears the rate-limit message and the call ends before the agent picks up. Set on the Forwarding page.

@@ -329,7 +329,9 @@ function RoutingForm({
     draft.maxConcurrentCalls !== settings.maxConcurrentCalls ||
     draft.forwardTimeoutSeconds !== settings.forwardTimeoutSeconds ||
     draft.unavailableMessage !== settings.unavailableMessage ||
-    draft.holdMessage !== settings.holdMessage;
+    draft.holdMessage !== settings.holdMessage ||
+    draft.maxCallsPerHour !== settings.maxCallsPerHour ||
+    draft.rateLimitMessage !== settings.rateLimitMessage;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,6 +341,8 @@ function RoutingForm({
       forwardTimeoutSeconds: draft.forwardTimeoutSeconds,
       unavailableMessage: draft.unavailableMessage,
       holdMessage: draft.holdMessage,
+      maxCallsPerHour: draft.maxCallsPerHour,
+      rateLimitMessage: draft.rateLimitMessage,
     });
   };
 
@@ -393,6 +397,31 @@ function RoutingForm({
             />
           </Field>
         </div>
+
+        <Field
+          label="Calls per number per hour"
+          htmlFor="rate-limit"
+          hint="Stops one number from calling again and again. 0 turns the limit off."
+        >
+          <Input
+            id="rate-limit"
+            type="number"
+            min={0}
+            max={100}
+            value={draft.maxCallsPerHour}
+            onChange={(e) => setDraft({ ...draft, maxCallsPerHour: Number(e.target.value) })}
+            className="w-28"
+          />
+        </Field>
+
+        <Field label="When a number is over the limit" htmlFor="rate-limit-message" hint="Played before the call ends.">
+          <Textarea
+            id="rate-limit-message"
+            rows={2}
+            value={draft.rateLimitMessage}
+            onChange={(e) => setDraft({ ...draft, rateLimitMessage: e.target.value })}
+          />
+        </Field>
 
         <Field label="While connecting" htmlFor="hold" hint="Played before staff phones ring. Callers who skip the greeting also hear the recording notice first.">
           <Textarea
