@@ -6,7 +6,8 @@ import { useApi } from '@/lib/useApi';
 import { formatDateTime, formatDuration, secondsBetween } from '@/lib/format';
 import { Badge, Button, Card, EmptyState, Input, Loading, Notice, PageHeader } from '@/components/ui';
 
-type Turn = { speaker: 'user' | 'ai'; text: string };
+// text_en is stored for calls after English transcripts were added; older calls have only text.
+type Turn = { speaker: 'user' | 'ai'; text: string; text_en?: string | null };
 
 type CallRecord = {
   id: string;
@@ -174,7 +175,15 @@ export default function CallLogPage() {
                                         <span className={t.speaker === 'user' ? 'text-zinc-500' : 'text-blue-700'}>
                                           {t.speaker === 'user' ? 'Caller' : 'Agent'}
                                         </span>
-                                        <span className="text-zinc-800">{t.text}</span>
+                                        <span className="text-zinc-800">
+                                          {t.text_en && t.text_en !== t.text ? (
+                                            <>
+                                              {t.text_en} <span className="text-zinc-500">({t.text})</span>
+                                            </>
+                                          ) : (
+                                            t.text
+                                          )}
+                                        </span>
                                       </li>
                                     ))}
                                   </ol>

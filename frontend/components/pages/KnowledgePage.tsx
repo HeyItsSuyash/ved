@@ -5,6 +5,7 @@ import { FileText, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 import { formatDateTime } from '@/lib/format';
+import { parseKnowledge, type KnowledgeBlock } from '@/lib/knowledge';
 import {
   Badge,
   Button,
@@ -30,7 +31,7 @@ type Doc = {
 
 const ACCEPT = '.pdf,.csv,.txt,.md,.json';
 
-/** Uploaded CSVs are stored as "Record N: col: value | col: value" lines. */
+/** CSVs uploaded before cleaning was added: "Record N: col: value | col: value" lines. */
 function parseCsvRecords(content: string): { columns: string[]; rows: string[][] } | null {
   const lines = content.split('\n').filter((l) => /^Record \d+: /.test(l));
   if (lines.length === 0) return null;
@@ -233,7 +234,11 @@ function AddTextForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: (do
         <Field label="Title" htmlFor="kb-title">
           <Input id="kb-title" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. B.Tech fee structure 2026" />
         </Field>
-        <Field label="Content" htmlFor="kb-content" hint="Write facts plainly. The agent quotes from this text.">
+        <Field
+          label="Content"
+          htmlFor="kb-content"
+          hint="Write facts plainly; the agent quotes from this text. Tables pasted from Excel, Word or a PDF are saved as rows and columns, and separator lines, dashes and decoration are removed."
+        >
           <Textarea id="kb-content" value={content} onChange={(e) => setContent(e.target.value)} required rows={14} />
         </Field>
         <div className="flex justify-end gap-2">
@@ -263,6 +268,10 @@ function DocumentPanel({
   const [error, setError] = useState<string | null>(null);
 
   const csv = useMemo(() => (doc.type === 'CSV' && doc.content ? parseCsvRecords(doc.content) : null), [doc]);
+  const blocks = useMemo(
+    () => (doc.content ? parseKnowledge(doc.content, { firstRowIsHeader: doc.type === 'CSV' }) : []),
+    [doc]
+  );
 
   const save = async () => {
     setBusy('save');
@@ -353,11 +362,47 @@ function DocumentPanel({
             </tbody>
           </table>
         </div>
+      ) : blocks.length === 0 ? (
+        <p className="text-sm text-zinc-500">This document is empty.</p>
       ) : (
-        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-zinc-800">
-          {doc.content || 'This document is empty.'}
-        </pre>
+        <div className="max-h-[520px] overflow-auto space-y-4">
+          {blocks.map((b, i) => (
+            <Block key={i} block={b} />
+          ))}
+        </div>
       )}
     </Card>
+  );
+}
+
+function Block({ block }: { block: KnowledgeBlock }) {
+  if (block.kind === 'text') {
+    return <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-800">{block.text}</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded-md border border-zinc-200">
+      <table className="w-full text-[13px]">
+        {block.header && (
+          <thead className="bg-zinc-50">
+            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-600">
+              {block.header.map((c, j) => (
+                <th key={j} className="px-3 py-2 font-medium whitespace-nowrap">{c}</th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {block.rows.map((row, r) => (
+            <tr key={r} className="border-b border-zinc-100 last:border-0 align-top">
+              {row.map((cell, j) => (
+                <td key={j} className={cx('px-3 py-2 text-zinc-800', j === 0 && !block.header && 'font-medium')}>
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
