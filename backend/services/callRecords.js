@@ -2,6 +2,7 @@ const prisma = require('./db');
 const { getCallSession, updateCallSession } = require('../state/calls');
 const { summarizeCall } = require('./llm');
 const { saveCallSummary } = require('./mongodb');
+const { englishTranscript, bilingual } = require('./transcript');
 
 /**
  * Persist a finished call once. Safe to call from several places (stream close,
@@ -20,14 +21,20 @@ async function finalizeCall(callSid, extra = {}) {
   const ended = new Date(endTime);
   const durationS = started ? Math.max(0, Math.round((ended - started) / 1000)) : null;
 
-  let summary = null;
-  if (s.turns.length > 0) {
-    try {
-      summary = await summarizeCall(s.turns);
-    } catch (err) {
-      console.error(`[Calls] Summary failed for ${callSid}:`, err.message);
-    }
-  }
+  // Summary and English transcript in parallel; either can fail without losing the call.
+  const [summary, english] = await Promise.all([
+    s.turns.length > 0
+      ? summarizeCall(s.turns).catch((err) => {
+          console.error(`[Calls] Summary failed for ${callSid}:`, err.message);
+          return null;
+        })
+      : null,
+    englishTranscript(s.turns, s.followUpQuestion ? [s.followUpQuestion] : []).catch((err) => {
+      console.error(`[Calls] Translation failed for ${callSid}:`, err.message);
+      return { turns: s.turns, extraEnglish: [] };
+    }),
+  ]);
+  const followUpQuestion = s.followUpQuestion ? bilingual(english.extraEnglish[0], s.followUpQuestion) : null;
 
   const outcome = s.outcome || (s.turns.length > 0 ? 'answered_by_ai' : 'missed');
   const resolution = s.followUp
@@ -49,9 +56,9 @@ async function finalizeCall(callSid, extra = {}) {
         outcome,
         forwarded_to: s.forwardedTo || null,
         recording_url: s.recordingUrl || null,
-        follow_up_question: s.followUpQuestion || null,
+        follow_up_question: followUpQuestion,
         callData: {
-          transcript: s.turns,
+          transcript: english.turns,
           startTime: s.startTime,
           endTime,
           meta: summary?.important_details || {},

@@ -1,4 +1,5 @@
 const prisma = require('./db');
+const { cleanKnowledgeText } = require('./knowledgeText');
 
 async function connect() {
   // Legacy compatibility: Just return true or a dummy db object 
@@ -162,12 +163,17 @@ async function getKnowledge(entity) {
 /**
  * Add a new knowledge source.
  */
+// JSON uploads keep their structure; everything else is cleaned of separators and
+// decoration, with tables stored as tab-separated rows (see services/knowledgeText.js).
+const cleanFor = (type, content) =>
+  content == null || String(type || '').toUpperCase() === 'JSON' ? content : cleanKnowledgeText(content);
+
 async function addKnowledge(data) {
   try {
     const doc = await prisma.knowledge.create({
       data: {
-        title: data.title,
-        content: data.content,
+        title: data.title?.trim(),
+        content: cleanFor(data.type, data.content),
         entity: data.entity,
         type: data.type
       }
@@ -184,11 +190,16 @@ async function addKnowledge(data) {
  */
 async function updateKnowledge(id, data) {
   try {
+    let content = data.content;
+    if (content !== undefined) {
+      const existing = await prisma.knowledge.findUnique({ where: { id }, select: { type: true } });
+      content = cleanFor(data.type ?? existing?.type, content);
+    }
     const updated = await prisma.knowledge.update({
       where: { id },
       data: {
         ...(data.title !== undefined ? { title: data.title } : {}),
-        ...(data.content !== undefined ? { content: data.content } : {}),
+        ...(content !== undefined ? { content } : {}),
         ...(data.entity !== undefined ? { entity: data.entity } : {}),
         ...(data.type !== undefined ? { type: data.type } : {})
       }

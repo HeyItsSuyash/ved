@@ -214,6 +214,8 @@ Do not include markdown code block ticks (\`\`\`json). Output raw JSON only.
 async function summarizeCall(fullTranscript) {
   const SYS_PROMPT = `
 You analyse calls to the VED admissions helpline. Given the following call transcript between an AI agent and a human caller, produce a structured summary.
+Write every value in plain English, even when the call was in Hindi or Hinglish. No markdown.
+"key_intent" is a short label in sentence case, such as "B.Tech fees" or "Hostel availability".
 Return a JSON object:
 {
   "summary": "2-3 sentence paragraph summarizing the call",
@@ -239,7 +241,7 @@ Return a JSON object:
       model: "qwen/qwen3.8-27b",
       response_format: { type: "json_object" },
       temperature: 0.2
-    });
+    }, { timeout: 20000 });
     return JSON.parse(completion.choices[0]?.message?.content || "{}");
   } catch(e) {
     console.error("[LLM] Summary Error:", e);
@@ -247,7 +249,76 @@ Return a JSON object:
   }
 }
 
+const TRANSLATE_PROMPT = `You translate lines from phone calls to a university admissions helpline into English.
+Callers and the agent speak Hindi, Hinglish or English. For each line, write what was said in natural English.
+Keep names, numbers, dates, amounts and course names (B.Tech, M.Tech, MBA) as they are. Do not add, explain, answer or shorten anything.
+If a line is already English, return it unchanged.
+Return only JSON: {"lines": [{"i": 0, "en": "..."}]} with exactly one entry for every input line, same "i".`;
+
+/**
+ * English translations for `lines` (same order). Returns null when no model could
+ * translate them, so callers can keep the original text.
+ */
+async function translateToEnglish(lines) {
+  if (lines.length === 0) return [];
+  // Small batches keep each request under the per-minute output-token limit.
+  const batches = [];
+  let batch = [];
+  let size = 0;
+  for (const line of lines) {
+    if (batch.length && (size + line.length > 1200 || batch.length >= 12)) {
+      batches.push(batch);
+      batch = [];
+      size = 0;
+    }
+    batch.push(line);
+    size += line.length;
+  }
+  batches.push(batch);
+
+  const out = [];
+  for (const b of batches) {
+    const translated = await translateBatch(b);
+    if (!translated) return null;
+    out.push(...translated);
+  }
+  return out;
+}
+
+async function translateBatch(lines) {
+  const groq = getGroqClient();
+  if (!groq) return null;
+  const input = JSON.stringify({ lines: lines.map((text, i) => ({ i, text })) });
+
+  for (const model of ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]) {
+    try {
+      const request = {
+        model,
+        temperature: 0,
+        messages: [
+          { role: "system", content: TRANSLATE_PROMPT },
+          { role: "user", content: input },
+        ],
+      };
+      if (!model.startsWith("openai/")) {
+        request.response_format = { type: "json_object" };
+        request.max_completion_tokens = 900;
+      }
+      const completion = await groq.chat.completions.create(request, { timeout: 20000 });
+      const content = completion.choices[0]?.message?.content || "";
+      const parsed = JSON.parse((content.match(/\{[\s\S]*\}/) || ["{}"])[0]);
+      const byIndex = new Map((parsed.lines || []).map((l) => [Number(l.i), String(l.en || "").trim()]));
+      if (lines.every((_, i) => byIndex.get(i))) return lines.map((_, i) => byIndex.get(i));
+      console.warn(`[LLM] Translation from ${model} was incomplete`);
+    } catch (err) {
+      console.warn(`[LLM] Translation with ${model} failed:`, err.message);
+    }
+  }
+  return null;
+}
+
 module.exports = {
   getLLMResponse,
-  summarizeCall
+  summarizeCall,
+  translateToEnglish
 };

@@ -127,6 +127,7 @@ app.get("/knowledge", async (req, res) => {
 app.post("/knowledge/text", async (req, res) => {
   const { title, content, entity } = req.body;
   const result = await addKnowledge({ title, content, entity, type: 'TEXT' });
+  if (!result) return res.status(500).json({ error: 'Could not save the document' });
   res.json(result);
 });
 
@@ -134,6 +135,8 @@ app.post("/knowledge/text", async (req, res) => {
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const { parse: parseCsv } = require('csv-parse/sync');
+const { rowsToText } = require('./services/knowledgeText');
+const { bilingual } = require('./services/transcript');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -166,18 +169,8 @@ app.post("/knowledge/upload", upload.single('file'), async (req, res) => {
         skip_empty_lines: true,
         trim: true
       });
-      // Convert CSV rows to structured readable text for LLM grounding
-      if (records.length > 0) {
-        const headers = records[0];
-        const rows = records.slice(1);
-        extractedText = `CSV Document: ${originalName}\nHeaders: ${headers.join(', ')}\n\n` +
-          rows.map((row, idx) => {
-            const rowStr = headers.map((h, i) => `${h}: ${row[i] !== undefined ? row[i] : ''}`).join(' | ');
-            return `Record ${idx + 1}: ${rowStr}`;
-          }).join('\n');
-      } else {
-        extractedText = csvContent;
-      }
+      // Stored as rows (first row = column names), shown as a table in the dashboard.
+      extractedText = records.length > 0 ? rowsToText(records) : csvContent;
     } else if (ext === '.json' || file.mimetype === 'application/json') {
       docType = 'JSON';
       const rawJson = file.buffer.toString('utf-8');
@@ -291,7 +284,7 @@ app.get("/api/ved/insights", async (req, res) => {
       const turns = Array.isArray(c.turns) ? c.turns : c.callData?.transcript;
       if (Array.isArray(turns)) {
         turns.filter(t => t.speaker === 'user').forEach(t => {
-          const q = t.text?.trim();
+          const q = bilingual(t.text_en, t.text?.trim());
           if (q && q.length > 5) {
             questionMap.set(q, (questionMap.get(q) || 0) + 1);
           }
